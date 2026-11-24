@@ -10,12 +10,13 @@
  * `score.mjs` for the scoring half.
  */
 
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, statSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
-import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectScope } from '../src/selection.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectScope, resolveScope, scopeHasChanges } from '../src/selection.js'
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
@@ -544,6 +545,38 @@ await testAsync('scope: an empty line means the command default', async () => {
 
   const explicit = await selectScope({ get: () => undefined }, {}, '--files a.js', undefined, (key) => key)
   assertEqual(explicit.scope.mode, 'files', 'an explicit line still wins')
+})
+
+await testAsync('scope: a branch with no base falls back to the recent commits', async () => {
+  const scope = await resolveScope({ mode: 'branch' }, { cwd: ROOT })
+  assertEqual(scope.mode, 'recent', 'falls back instead of reviewing nothing')
+  assertEqual(scope.count, 5, 'window size')
+  const text = await scopeInstruction(scope, { cwd: ROOT })
+  assert(text.includes('last 5 commits'), 'the instruction names the window')
+  assertEqual(scopeLabel(scope), 'last 5 commits', 'label')
+})
+
+await testAsync('scope: a clean working tree has nothing to review', async () => {
+  const dir = join(ROOT, 'tmp', 'scope-probe')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' })
+  git('init', '-q')
+  git('config', 'user.email', 'probe@example.com')
+  git('config', 'user.name', 'probe')
+  writeFileSync(join(dir, 'a.txt'), 'a\n')
+  git('add', 'a.txt')
+  git('commit', '-q', '-m', 'init')
+
+  assertEqual(await scopeHasChanges({ mode: 'worktree' }, { cwd: dir }), false, 'clean tree')
+  writeFileSync(join(dir, 'b.txt'), 'b\n')
+  assertEqual(await scopeHasChanges({ mode: 'worktree' }, { cwd: dir }), true, 'untracked counts')
+
+  const fallback = await resolveScope({ mode: 'branch' }, { cwd: dir })
+  assertEqual(fallback.mode, 'recent', 'a repo with no main reviews recent commits')
+  assertEqual(await scopeHasChanges(fallback, { cwd: dir }), true, 'recent is never empty')
+
+  rmSync(dir, { recursive: true, force: true })
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {

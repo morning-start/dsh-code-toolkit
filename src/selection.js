@@ -108,12 +108,59 @@ export function parseArgs(rawInput) {
   return { scope: { mode: 'instructions', text: line }, apply }
 }
 
-/** The repository's default branch, used by the "current branch" scope. */
+/** The repository's default branch, ignoring a ref that already equals HEAD. */
 async function defaultBase(cwd, signal) {
+  const head = await resolveRef(cwd, 'HEAD', signal)
   for (const ref of ['origin/HEAD', 'origin/main', 'origin/master', 'main', 'master']) {
-    if (await resolveRef(cwd, ref, signal)) return ref
+    const resolved = await resolveRef(cwd, ref, signal)
+    if (resolved && resolved !== head) return ref
   }
   return undefined
+}
+
+/**
+ * Turn a symbolic scope into a concrete one.
+ *
+ * "Current branch" only means something when the branch has a base to compare
+ * with; on a repository where the work happens on main, the merge base is HEAD
+ * and the diff is empty. Falling back to the recent commits keeps the default
+ * useful instead of producing a review of nothing.
+ */
+export async function resolveScope(scope, { cwd, signal } = {}) {
+  if (scope.mode !== 'branch' || !cwd) return scope
+  try {
+    const ref = await defaultBase(cwd, signal)
+    const base = ref ? await mergeBase(cwd, ref, signal) : undefined
+    if (base) return { mode: 'base', ref }
+  } catch {
+    /* not a repository, or no base to find */
+  }
+  return { mode: 'recent', count: 5 }
+}
+
+/** Whether this scope has anything to look at; a clean tree is a real answer. */
+export async function scopeHasChanges(scope, { cwd, signal } = {}) {
+  if (!cwd) return true
+  const changed = async (args) => (await git(cwd, args, signal)).trim().length > 0
+  try {
+    switch (scope.mode) {
+      case 'worktree':
+        return await changed(['status', '--porcelain'])
+      case 'base': {
+        const base = await mergeBase(cwd, scope.ref, signal)
+        if (!base) return true
+        return (await changed(['diff', '--name-only', base])) || (await changed(['ls-files', '--others', '--exclude-standard']))
+      }
+      case 'commit':
+        return true
+      case 'recent':
+        return true
+      default:
+        return true
+    }
+  } catch {
+    return true
+  }
 }
 
 /**
@@ -154,6 +201,8 @@ export async function scopeInstruction(scope, { cwd, signal } = {}) {
       }
       return 'Scope: the changes on the current branch. Find the base first (`git merge-base HEAD origin/main`), then diff against it; when the repository has no base branch, fall back to `git diff HEAD`.'
     }
+    case 'recent':
+      return `Scope: the last ${scope.count} commits on the current branch (the branch has no base to compare with). Start with \`git log -${scope.count} --oneline\` and \`git diff HEAD~${scope.count}..HEAD\`; if the history is shorter, diff against the root commit.`
     case 'base': {
       let base
       if (cwd) {
@@ -188,6 +237,8 @@ export function scopeLabel(scope) {
       return 'whole project'
     case 'branch':
       return 'current branch'
+    case 'recent':
+      return `last ${scope.count} commits`
     case 'base':
       return `HEAD vs ${scope.ref}`
     case 'commit':

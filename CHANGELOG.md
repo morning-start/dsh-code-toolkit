@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.16.0 — 2026-11-24
+
+- The review default no longer produces an empty scope. "Current branch" now
+  ignores a base ref that already equals HEAD; when the branch has no distinct
+  base (work happens on main), the scope falls back to the **last 5 commits**
+  instead of a diff of nothing.
+- Empty scopes are caught before a run: a clean working tree with no base returns
+  "nothing to review" with the flags that would fix it, instead of spending a
+  turn.
+- The in-session path now tells the agent to read `AGENT.md` first and, for
+  structured commands, to write the human Markdown report instead of the JSON
+  envelope (only the isolated path returns JSON, which the shell renders).
+- 73 deterministic checks.
+
 ## 0.15.0 — 2026-11-24
 
 - Every command now runs on empty input with a sensible default:

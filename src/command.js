@@ -1,4 +1,4 @@
-import { scopeInstruction, scopeLabel, selectScope, splitFlags } from './selection.js'
+import { resolveScope, scopeHasChanges, scopeInstruction, scopeLabel, selectScope, splitFlags } from './selection.js'
 import { failureMessage, reportMessage, userMessage } from './delivery.js'
 import { outputLanguage } from './i18n.js'
 
@@ -136,11 +136,13 @@ export class SessionCommand {
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
 
-    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
-    if (!scope) throw new Error(t('error.noScope'))
+    const { scope: symbolic } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
+    if (!symbolic) throw new Error(t('error.noScope'))
+    const scope = await resolveScope(symbolic, { cwd, signal: combined })
+    if (!(await scopeHasChanges(scope, { cwd, signal: combined }))) throw new Error(t('error.emptyScope'))
 
     const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
-    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined })
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: true })
 
     await host.journal
       .write(sessionId, {
@@ -161,11 +163,13 @@ export class SessionCommand {
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
 
-    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
-    if (!scope) throw new Error(t('error.noScope'))
+    const { scope: symbolic } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
+    if (!symbolic) throw new Error(t('error.noScope'))
+    const scope = await resolveScope(symbolic, { cwd, signal: combined })
+    if (!(await scopeHasChanges(scope, { cwd, signal: combined }))) throw new Error(t('error.emptyScope'))
 
     const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
-    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined })
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: false })
 
     await host.journal
       .write(sessionId, {
@@ -204,7 +208,7 @@ export class SessionCommand {
   }
 
   /** The task text handed to either the current agent or the child. */
-  async buildPrompt({ scope, mode, cwd, locale, signal }) {
+  async buildPrompt({ scope, mode, cwd, locale, signal, inline }) {
     const { spec } = this
     const chinese = String(locale).startsWith('zh')
     const modeLine = mode === 'dry-run'
@@ -215,15 +219,25 @@ export class SessionCommand {
     const delivery = chinese
       ? '你的最终回复会原样发给用户，作为这次任务的结果：写清改了什么、跑了哪条命令、输出是什么、哪些没有验证。'
       : 'Your final reply is delivered to the user as the result: say what changed, which command ran, what it printed, and what stayed unverified.'
+    const personaLine = chinese
+      ? '先读参考目录下的 AGENT.md，按它的流程与判定标准执行。'
+      : 'Read AGENT.md in the reference directory first and follow its process and bar.'
+    const outputLine = inline && spec.structured
+      ? (chinese
+        ? '这次在会话内执行：直接写给人看的 Markdown 报告，不要输出 JSON 信封。'
+        : 'This run is in-session: write the report for a human in Markdown, not the JSON envelope.')
+      : ''
 
     return [
       chinese ? `工作目录：${cwd}` : `Working directory: ${cwd}`,
       chinese ? `参考目录：${spec.persona.directory}` : `Reference directory: ${spec.persona.directory}`,
+      personaLine,
       '',
       await scopeInstruction(scope, { cwd, signal }),
       '',
       chinese ? `模式：${mode}。` : `Mode: ${mode}.`,
       modeLine,
+      ...(outputLine ? ['', outputLine] : []),
       '',
       delivery,
       '',
