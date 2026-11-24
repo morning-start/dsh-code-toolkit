@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.0 — 2026-11-24
+
+- Every command now runs on empty input with a sensible default:
+  `/code-review` reviews the current branch against its base (auto-detected
+  `origin/HEAD` / `main` / `master`), `/code-simplify` and `/code-scrub` work on
+  the whole project and write, `/code-caption` continues the task already in the
+  conversation, `/pua` uses the default flavor.
+- Commands can declare their own default scope (`defaultScope`), so review's
+  "current branch" and simplify's "whole project" coexist in the same shell.
+- 71 deterministic checks.
+
 ## 0.14.0 — 2026-11-24
 
 - Every command now has a default that needs no input: scope is the **whole

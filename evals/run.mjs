@@ -530,13 +530,17 @@ test('every command goes through the one session shell', () => {
   }
 })
 
-await testAsync('scope: an empty line means the whole project', async () => {
-  const result = await selectScope({ get: () => undefined }, {}, '', undefined, (key) => key)
-  assertEqual(result.scope.mode, 'project', 'default scope')
+await testAsync('scope: an empty line means the command default', async () => {
+  const project = await selectScope({ get: () => undefined }, {}, '', undefined, (key) => key)
+  assertEqual(project.scope.mode, 'project', 'project by default')
+
+  const branch = await selectScope({ get: () => undefined }, {}, '', undefined, (key) => key, 'branch')
+  assertEqual(branch.scope.mode, 'branch', 'a command can pick its own default')
 
   const text = await scopeInstruction({ mode: 'project' })
   assert(text.includes('whole project'), 'the instruction names the whole project')
   assertEqual(scopeLabel({ mode: 'project' }), 'whole project', 'label')
+  assertEqual(scopeLabel({ mode: 'branch' }), 'current branch', 'branch label')
 
   const explicit = await selectScope({ get: () => undefined }, {}, '--files a.js', undefined, (key) => key)
   assertEqual(explicit.scope.mode, 'files', 'an explicit line still wins')
@@ -627,15 +631,16 @@ await testAsync('caption: task and protocol are steered into the session', async
   assert(text.includes('caption'), 'names the ledger directory')
 })
 
-await testAsync('caption: an empty task is refused before anything is steered', async () => {
+await testAsync('caption: an empty task falls back to the current work', async () => {
   const definition = captionDefinition()
   const steered = []
   const agent = { id: 'a1', session: { header: { cwd: 'C:\\work\\demo' } }, steer: (m) => steered.push(m) }
 
   const result = await definition.handler({ agent, rawInput: '   ' })
 
-  assertEqual(result.kind, 'error', 'kind')
-  assertEqual(steered.length, 0, 'nothing is steered')
+  assertEqual(result.kind, 'success', 'kind')
+  assertEqual(steered.length, 1, 'the protocol is still installed')
+  assert(steered[0].content[0].text.includes('继续当前会话'), 'the default task says so')
 })
 
 await testAsync('caption: a host without steer fails loudly', async () => {

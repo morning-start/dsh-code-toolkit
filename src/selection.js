@@ -108,15 +108,23 @@ export function parseArgs(rawInput) {
   return { scope: { mode: 'instructions', text: line }, apply }
 }
 
+/** The repository's default branch, used by the "current branch" scope. */
+async function defaultBase(cwd, signal) {
+  for (const ref of ['origin/HEAD', 'origin/main', 'origin/master', 'main', 'master']) {
+    if (await resolveRef(cwd, ref, signal)) return ref
+  }
+  return undefined
+}
+
 /**
- * Resolve the scope. An explicit line wins; otherwise the default is the whole
- * project on the current branch — no question, because a command with no
- * arguments must do something sensible on its own.
+ * Resolve the scope. An explicit line wins; otherwise the command's own default
+ * applies — no question, because a command with no arguments must do something
+ * sensible on its own.
  */
-export async function selectScope(ctx, agent, rawInput, signal, t) {
+export async function selectScope(ctx, agent, rawInput, signal, t, fallback = 'project') {
   const parsed = parseArgs(rawInput)
   if (parsed.scope) return parsed
-  return { scope: { mode: 'project' }, apply: parsed.apply }
+  return { scope: { mode: fallback }, apply: parsed.apply }
 }
 
 /**
@@ -130,6 +138,22 @@ export async function scopeInstruction(scope, { cwd, signal } = {}) {
       return 'Scope: the uncommitted changes in this working directory (staged, unstaged, and untracked). Start with `git status --short` and `git diff HEAD`.'
     case 'project':
       return 'Scope: the whole project on the current branch — every source file under the repository root, not only the diff. Start by listing the tree and reading the files you will touch; do not limit yourself to recent changes.'
+    case 'branch': {
+      let ref
+      let base
+      if (cwd) {
+        try {
+          ref = await defaultBase(cwd, signal)
+          if (ref) base = await mergeBase(cwd, ref, signal)
+        } catch {
+          base = undefined
+        }
+      }
+      if (base) {
+        return `Scope: everything this branch adds on top of \`${ref}\`. The merge base is ${base}; start with \`git diff ${base}\` (and \`git log ${base}..HEAD\` for intent).`
+      }
+      return 'Scope: the changes on the current branch. Find the base first (`git merge-base HEAD origin/main`), then diff against it; when the repository has no base branch, fall back to `git diff HEAD`.'
+    }
     case 'base': {
       let base
       if (cwd) {
@@ -162,6 +186,8 @@ export function scopeLabel(scope) {
       return 'working tree vs HEAD'
     case 'project':
       return 'whole project'
+    case 'branch':
+      return 'current branch'
     case 'base':
       return `HEAD vs ${scope.ref}`
     case 'commit':

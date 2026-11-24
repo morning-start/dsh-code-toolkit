@@ -136,7 +136,7 @@ export class SessionCommand {
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
 
-    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t)
+    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
     if (!scope) throw new Error(t('error.noScope'))
 
     const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
@@ -161,7 +161,7 @@ export class SessionCommand {
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
 
-    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t)
+    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
     if (!scope) throw new Error(t('error.noScope'))
 
     const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'

@@ -106,6 +106,7 @@ export function apply(ctx, config = {}) {
       persona: personas.review,
       model: config.reviewModel,
       forceDryRun: true,
+      defaultScope: 'branch',
       structured: true,
       dryRunText: 'Report only. Change no files.',
     }, host),
@@ -116,13 +117,14 @@ export function apply(ctx, config = {}) {
       descriptionKey: 'cmd.caption',
       hintKey: 'hint.caption',
       persona: personas.caption,
-      validate: (rawInput, t) => (String(rawInput ?? '').trim() ? null : t('caption.needsTask')),
       buildText: ({ rawInput, agent, locale }) => {
         const cwd = agent.session?.header?.cwd
+        const task = String(rawInput ?? '').trim()
+          || '继续当前会话正在进行的任务：先读台账，再决定下一步。'
         return [
           '# Caption loop',
           '',
-          `Task: ${String(rawInput ?? '').trim()}`,
+          `Task: ${task}`,
           ...(cwd ? [`Working directory: ${cwd}`, `Ledger directory: ${join(cwd, 'docs', 'caption')}`] : []),
           `Reference directory: ${personas.caption.directory}`,
           '',
