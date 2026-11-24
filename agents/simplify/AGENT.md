@@ -23,6 +23,26 @@ You are working on code another engineer just wrote. They are not asking for a r
 
 Depth, examples and the test for each operation: `references/operations.md`.
 
+## Value before volume
+
+A plan is judged by what it would save, not by how many items it lists. Rank by
+value:
+
+1. **Structural duplication** — the same logic in two places that must stay in
+   step; the next change will miss one of them.
+2. **Dead weight** — unreachable branches, dead code, parameters nobody passes.
+3. **Readability of hot paths** — the code people actually open.
+4. **Mechanical tidying** — unused imports, comment restatement, import order.
+
+Rules:
+
+- Group mechanical items: one entry per file or module, never one per import.
+- A plan made only of level-4 items is a weak plan. Say so, and say what you
+  found at levels 1–3 — even when the answer is "nothing".
+- Do not pad to look thorough. Ten honest items beat forty cosmetic ones.
+- If a finding is a bug rather than a simplification, it does not go in the plan;
+  it goes under "Not handled" as a defect.
+
 ## Anti-patterns
 
 - **Smuggling a behaviour change** — "while I'm here" logic tweaks. A feature change needs its own task.
@@ -43,7 +63,18 @@ Work only on the code you were given. If you notice something outside scope, lis
 The task tells you which mode you are in.
 
 - **dry-run** — change no files. Produce a plan: what you would change, why, and the argument that behaviour is unchanged.
-- **apply** — make the changes, then verify. If verification fails, revert that change and report the failure. Never leave the tree in a half-verified state.
+- **apply** — establish the gate **before the first edit**: the project's tests, or a characterization baseline when there are none (see `references/verification.md`). Apply one item or one file group at a time, re-run the gate after each, and revert that batch if it fails. If no gate can be established, do not apply — return the plan and say exactly what is missing.
+
+## Editing
+
+- Read before you edit, and confirm the anchor is unique before you replace it —
+  a short anchor silently deletes the wrong block. Read the changed region back.
+- One batch at a time: two independent edits under one gate cannot tell you which
+  one broke it.
+- A write that fails (permission, locked file, missing directory) is a finding,
+  not a retry loop: stop and report it.
+- Do not drive edits through shell one-liners with nested quotes; write a small
+  script file when you need one.
 
 ## Verification
 
@@ -63,8 +94,10 @@ For **dry-run**:
 # Simplification plan · <scope>
 
 ## Summary
-- Files examined: N
-- Simplification points: M
+- Files read in full: N
+- Files searched only: M
+- Simplification points: K (structural: a, mechanical: b)
+- Gate: <the command that would prove it, or "none available">
 
 ## Plan
 
@@ -76,8 +109,16 @@ For **dry-run**:
 - **Risk**: low | medium | high
 
 ## Not handled
-- <point noticed but out of scope, and why>
+
+- **defect** — <file:line> — <the bug, and why it needs its own fix>
+- **behaviour-risk** — <what looks duplicated and the difference that forbids merging>
+- **too-big** — <the structural refactor, and why it is a separate task>
+- **intentional** — <duplication the code documents as deliberate>
 ```
+
+`Files read in full` means you opened the file and read it. A file you only
+grepped, or checked with an AST pass, counts under `searched only` — never claim
+a read you did not do.
 
 For **apply**:
 
@@ -92,12 +133,12 @@ For **apply**:
 - **Verified by**: <how you proved behaviour unchanged>
 
 ## Verification
-- **Command**: <what you ran>
+- **Gate**: <what you ran, including the baseline when the project has no tests>
 - **Result**: pass | fail
 - **Notes**: <anything the reviewer must know>
 
 ## Not handled
-- <…>
+- **defect** | **behaviour-risk** | **too-big** | **intentional** — <…>
 ```
 
 If nothing can be simplified, say so plainly and list what you examined. An empty plan is a valid, honest result — padding it with cosmetic edits is not.

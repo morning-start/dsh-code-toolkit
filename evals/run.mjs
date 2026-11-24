@@ -505,6 +505,22 @@ function captionDefinition() {
   return registered.find((definition) => definition.name === 'code-caption')
 }
 
+test('simplify: no gate, no apply, and the plan ranks by value', () => {
+  const text = read('agents/simplify/AGENT.md')
+  for (const marker of [
+    'Value before volume',
+    'characterization baseline',
+    'do not apply',
+    'anchor is unique',
+    'Files read in full',
+    'behaviour-risk',
+  ]) {
+    assert(text.includes(marker), `the simplify protocol is missing: ${marker}`)
+  }
+  const verification = read('agents/simplify/references/verification.md')
+  assert(verification.includes('When the project has no tests'), 'verification.md lost the no-suite protocol')
+})
+
 test('caption: the protocol carries the loop, not a checklist', () => {
   const text = read('agents/caption/AGENT.md')
   for (const marker of ['Read the ledger first', 'Verify', 'Record one caption entry', 'dead end', 'unverified']) {

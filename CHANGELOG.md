@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.0 — 2026-11-24
+
+- `/code-simplify` learned from two real runs. The first (95 files, no test
+  suite) produced 17 items that were mostly unused imports, pushed the
+  interesting duplications into a flat "not handled" list, and claimed a full
+  read of files it had only searched. The second run failed on anchors and on a
+  file it could not write.
+- The plan now ranks by value, groups mechanical items, and reports coverage as
+  `read in full` / `searched only`.
+- No gate, no apply: the project's tests, or a characterization baseline when
+  there are none (compile + import smoke + real entry points with hashed output +
+  a pinned input/output table). If no baseline can be built, the run returns the
+  plan and names what is missing.
+- Apply works in batches, re-runs the gate after each, confirms the anchor is
+  unique, reads the edit back, and reports a failed write instead of retrying it.
+- "Not handled" is classified: defect / behaviour-risk / too-big / intentional.
+- 57 deterministic checks. The change is a protocol edit and has not been scored
+  against the eval cases again.
+
 ## 0.6.0 — 2026-11-24
 
 - `/code-caption` can dispatch subagents, under a two-lane rule: analysis is

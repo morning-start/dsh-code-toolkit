@@ -39,12 +39,12 @@
 - **Verified by**: line-by-line audit — the throw still fires on exactly the last attempt, `error` is the same binding, and no statement moved across the `await`
 
 ## Verification
-- **Command**: `npm test -- src/socket.test.js`
+- **Gate**: `npm test -- src/socket.test.js`
 - **Result**: pass (7 tests)
 - **Notes**: the retry test asserts the final error propagates; it would fail if the guard moved outside the loop.
 
 ## Not handled
-- The unused `MAX_RETRIES` re-export in `src/index.js` — outside the given scope.
+- **intentional** — the unused `MAX_RETRIES` re-export in `src/index.js` is outside the given scope.
 ```
 
 ## What makes it correct

@@ -37,3 +37,38 @@ In the **apply** report, `Verification` needs the exact command and the result:
 ```
 
 A vague "verified" is worse than an honest "not verified, and here is why".
+
+## When the project has no tests
+
+A repository with no suite is not a licence to guess. Build a characterization
+baseline **before the first edit**, and keep it reproducible:
+
+1. **Compile / parse the tree** — `python -m compileall -q src`, `node --check`,
+   `tsc --noEmit`, `go build ./...`. A baseline that does not compile is itself
+   the finding.
+2. **Import smoke** — import every touched module (or the app's entry point) so
+   import-time errors surface before and after.
+3. **Run the real entry points on real input** — the CLI, the handler, the
+   script the project actually uses. Capture stdout, exit codes, and every file
+   it writes; hash them (`sha256sum`, `Get-FileHash`). This is the strongest
+   evidence available without a suite.
+4. **Pin pure functions with a table** — call each touched function on a fixed
+   list of inputs (including the empty, boundary, and error cases) and record
+   input → output. Compare the table after the change; any difference is a
+   behaviour change, not a rounding detail.
+
+Record the baseline commands and their output in the plan (or in the apply
+report's `Verification`). After each batch, re-run the same commands and diff.
+
+**If no baseline can be built** — no runnable entry point, no real input, no
+toolchain — do not apply. Return the plan, name what is missing, and say what
+would make it verifiable. An unverifiable edit is not a simplification; it is an
+unreviewed change with a nicer name.
+
+## One batch at a time
+
+Apply one item, or one file group, then run the gate. Two independent edits under
+a single gate cannot tell you which one broke it, and reverting both throws away
+work that was correct. If a batch fails the gate, revert that batch and record
+why — do not "fix forward" inside a simplification.
+

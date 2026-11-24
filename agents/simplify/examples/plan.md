@@ -28,8 +28,10 @@ export async function loadConfig(path) {
 # Simplification plan · src/config.js
 
 ## Summary
-- Files examined: 1
-- Simplification points: 2
+- Files read in full: 1
+- Files searched only: 0
+- Simplification points: 2 (structural: 1, mechanical: 1)
+- Gate: `node --test` (2 tests, both green before the change)
 
 ## Plan
 
@@ -48,7 +50,7 @@ export async function loadConfig(path) {
 - **Risk**: **high — rejected**
 
 ## Not handled
-- `JSON.parse` throwing on malformed input is unchanged; adding a `try/catch` would change the error contract.
+- **behaviour-risk** — `JSON.parse` throwing on malformed input is unchanged; adding a `try/catch` would change the error contract.
 ```
 
 ## What this plan demonstrates
