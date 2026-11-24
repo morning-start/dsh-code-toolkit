@@ -7,6 +7,7 @@ import { Journal } from './src/journal.js'
 import { parseReport, renderReport } from './src/report.js'
 import { scopeInstruction, scopeLabel, selectScope, confirmApply } from './src/selection.js'
 import { runIsolatedAgent } from './src/runtime.js'
+import { reportMessage, failureMessage } from './src/delivery.js'
 
 export const name = 'morning-start-code-toolkit'
 export const inject = ['commands', 'subagents', 'systemPrompt', 'tools']
@@ -75,92 +76,126 @@ export function apply(ctx, config = {}) {
     return forcedLocale ?? readHostLocale(ctx, fallbackLocale)
   }
 
-  async function execute(agent, rawInput, signal, options) {
+  /** Queue a message for the current session; a disposed session is not an error. */
+  function deliver(agent, message) {
+    try {
+      agent.followup(message)
+    } catch {
+      /* session disposed or unavailable */
+    }
+  }
+
+  /**
+   * The background half: pick a scope, run the isolated agent, render the report.
+   * It resolves to the report text and throws on any failure — delivery belongs
+   * to `start`, not here.
+   */
+  async function execute(agent, rawInput, combined, options, { sessionId, locale, t }) {
+    const cwd = agent.session?.header?.cwd
+    if (!cwd) throw new Error(t('error.noCwd'))
+
+    const { scope, apply: fromArgs } = await selectScope(ctx, agent, rawInput, combined, t)
+    if (!scope) throw new Error(t('error.noScope'))
+
+    const wantsApply = fromArgs || (options.askApply === true && await confirmApply(ctx, agent, combined, t))
+    const mode = options.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
+    const prompt = await buildPrompt({
+      persona: options.persona,
+      scope,
+      mode,
+      cwd,
+      locale,
+      signal: combined,
+      dryRunText: options.dryRunText ?? 'Report only. Change no files.',
+    })
+
+    await journal
+      .write(sessionId, {
+        state: 'running',
+        command: options.command,
+        scope: scopeLabel(scope),
+        mode,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    const raw = await runIsolatedAgent(ctx, agent, {
+      persona: `${options.persona.text}\n\n${outputLanguage(locale)}`,
+      prompt,
+      label: options.label,
+      signal: combined,
+      model: options.model,
+      t,
+    })
+
+    const body = options.structured
+      ? renderReport(parseReport(raw), t)
+      : raw
+    const text = [`> ${scopeLabel(scope)} · ${mode}`, '', body].join('\n')
+
+    await journal
+      .write(sessionId, {
+        state: 'finished',
+        command: options.command,
+        scope: scopeLabel(scope),
+        mode,
+        result: text,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    return text
+  }
+
+  /**
+   * Start a run and settle the command immediately.
+   *
+   * The composer stays read-only from Enter until the handler settles, so a
+   * handler that awaits the whole subagent run leaves the draft sitting in the
+   * box. The run continues in the background and its report is delivered as a
+   * queued user message — the same shape `dsh-code-review` and `dsh-simplify`
+   * use. `/code-status` still reads the journal, `/code-cancel` still aborts.
+   */
+  function start(agent, rawInput, signal, options) {
     const key = agent.id
     const locale = localeNow()
     const t = (name) => translate(locale, name)
     if (running.has(key)) return { kind: 'error', text: t('error.busy') }
-
-    const cwd = agent.session?.header?.cwd
-    if (!cwd) return { kind: 'error', text: t('error.noCwd') }
+    if (!agent.session?.header?.cwd) return { kind: 'error', text: t('error.noCwd') }
 
     const controller = new AbortController()
     const combined = AbortSignal.any([signal, controller.signal])
     running.set(key, { controller, label: options.label, startedAt: Date.now() })
-
     const sessionId = agent.session?.id ?? agent.id
-    try {
-      const { scope, apply: fromArgs } = await selectScope(ctx, agent, rawInput, combined, t)
-      if (!scope) return { kind: 'error', text: t('error.noScope') }
+    const language = outputLanguage(locale)
 
-      const wantsApply = fromArgs || (options.askApply === true && await confirmApply(ctx, agent, combined, t))
-      const mode = options.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
-      const prompt = await buildPrompt({
-        persona: options.persona,
-        scope,
-        mode,
-        cwd,
-        locale,
-        signal: combined,
-        dryRunText: options.dryRunText ?? 'Report only. Change no files.',
-      })
+    void execute(agent, rawInput, combined, options, { sessionId, locale, t })
+      .then(
+        (text) => {
+          if (combined.aborted) return
+          deliver(agent, reportMessage(text, language))
+        },
+        (error) => {
+          if (combined.aborted) return
+          const detail = error instanceof Error ? error.message : String(error)
+          deliver(agent, failureMessage(detail, language))
+        },
+      )
+      .finally(() => running.delete(key))
 
-      await journal
-        .write(sessionId, {
-          state: 'running',
-          command: options.command,
-          scope: scopeLabel(scope),
-          mode,
-          at: new Date().toISOString(),
-        })
-        .catch(() => undefined)
-
-      const raw = await runIsolatedAgent(ctx, agent, {
-        persona: `${options.persona.text}\n\n${outputLanguage(locale)}`,
-        prompt,
-        label: options.label,
-        signal: combined,
-        model: options.model,
-        t,
-      })
-
-      const body = options.structured
-        ? renderReport(parseReport(raw), t)
-        : raw
-      const text = [`> ${scopeLabel(scope)} · ${mode}`, '', body].join('\n')
-
-      await journal
-        .write(sessionId, {
-          state: 'finished',
-          command: options.command,
-          scope: scopeLabel(scope),
-          mode,
-          result: text,
-          at: new Date().toISOString(),
-        })
-        .catch(() => undefined)
-
-      return { kind: 'success', text }
-    } catch (error) {
-      if (combined.aborted) return { kind: 'error', text: t('error.aborted') }
-      const message = error instanceof Error ? error.message : String(error)
-      return { kind: 'error', text: message }
-    } finally {
-      running.delete(key)
-    }
+    return { kind: 'success', text: t('cmd.queued') }
   }
 
   // These three declare `input` on purpose: a command without it is executed the
   // moment it is picked from the `/` menu (Tab included), so there is no way to
-  // insert the token and keep typing. The cost is that the composer keeps the
-  // draft read-only until the handler settles — that is the host's rule for a
-  // claimed command, and the only way around it is a client-side contribution.
+  // insert the token and keep typing. The handler settles immediately, so the
+  // composer clears at once; the report arrives later as a queued message.
   ctx.commands.register({
     name: 'code-simplify',
     description: translate(localeNow(), 'cmd.simplify'),
     input: { hint: translate(localeNow(), 'hint.scope') },
     handler({ agent, rawInput, signal }) {
-      return execute(agent, rawInput, signal, {
+      return start(agent, rawInput, signal, {
         command: 'simplify',
         persona: simplifyPersona,
         label: translate(localeNow(), 'cmd.simplify'),
@@ -178,7 +213,7 @@ export function apply(ctx, config = {}) {
     description: translate(localeNow(), 'cmd.scrub'),
     input: { hint: translate(localeNow(), 'hint.scrub') },
     handler({ agent, rawInput, signal }) {
-      return execute(agent, rawInput, signal, {
+      return start(agent, rawInput, signal, {
         command: 'scrub',
         persona: scrubPersona,
         label: translate(localeNow(), 'cmd.scrub'),
@@ -227,7 +262,7 @@ export function apply(ctx, config = {}) {
     description: translate(localeNow(), 'cmd.review'),
     input: { hint: translate(localeNow(), 'hint.scope') },
     handler({ agent, rawInput, signal }) {
-      return execute(agent, rawInput, signal, {
+      return start(agent, rawInput, signal, {
         command: 'review',
         persona: reviewPersona,
         label: translate(localeNow(), 'cmd.review'),

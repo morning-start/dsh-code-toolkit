@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
 import { scopeInstruction, scopeLabel, parseArgs, mergeBase, confirmApply } from '../src/selection.js'
+import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
 
@@ -501,6 +502,23 @@ await testAsync('question prompts go through ctx.get, never ctx.userQuestions', 
   }
   const t = (key) => strings[key] ?? key
   assertEqual(await confirmApply(ctx, {}, undefined, t), false, 'the plan-only answer is not apply')
+})
+
+await testAsync('delivery: the report arrives as a user message the model must relay', async () => {
+  const message = reportMessage('## 审查 · 完成\n\n1 条发现', 'Write all user-facing text in Simplified Chinese.')
+  assertEqual(message.role, 'user', 'role')
+  assertEqual(message.content[0].type, 'text', 'content block type')
+  assert(message.source.kind === 'morning-start-code-toolkit', 'the plugin names its own source kind')
+  assert(typeof message.id === 'string' && message.id.length > 0, 'every message carries an id')
+  assert(message.content[0].text.includes('verbatim'), 'the model is told to relay, not re-run')
+  assert(message.content[0].text.includes('Simplified Chinese'), 'the output language travels with the report')
+
+  const failure = failureMessage('no scope', 'Write in English.')
+  assert(failure.content[0].text.includes('did not complete'), 'a failure is delivered too')
+  assert(failure.content[0].text.includes('no scope'), 'the failure keeps its detail')
+
+  const plain = userMessage('x')
+  assert(plain.content[0].text === 'x', 'plain text passes through')
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {

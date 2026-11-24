@@ -1,6 +1,6 @@
 {
   "name": "@morning-start/dsh-code-toolkit",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "A toolkit of isolated-agent passes for DeepSeek Harness: code review, behavior-preserving simplification, and privacy scrubbing (secrets, accounts, local paths) with masked reports. Layered reference material and an evaluation harness included.",

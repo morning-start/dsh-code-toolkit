@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0 — 2026-11-24
+
+- The three spawn commands settle immediately: the handler returns a receipt and
+  the composer clears at once, instead of staying read-only for the whole run.
+  The report is delivered afterwards as a queued user message (`agent.followup`)
+  that tells the model to relay it verbatim — the shape `dsh-code-review` and
+  `dsh-simplify` use.
+- A failed run is delivered too, so a cleared box is never a silent box.
+- `/code-status` and `/code-cancel` still work; the journal is unchanged.
+- The message is built locally in `src/delivery.js` (mirroring
+  `createUserMessage`) because a `link:`-installed plugin cannot resolve host
+  packages from its real path.
+- 62 deterministic checks.
+
 ## 0.8.1 — 2026-11-24
 
 - Fixed `cannot get property "userQuestions" without inject`: the prompt helper
