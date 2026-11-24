@@ -17,7 +17,7 @@ export class Journal {
 
   static defaultDirectory() {
     const home = process.env.DSH_HOME ?? join(homedir(), '.dsh')
-    return join(home, 'code-quality')
+    return join(home, 'code-toolkit')
   }
 
   path(sessionId) {

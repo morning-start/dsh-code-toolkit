@@ -131,7 +131,7 @@ examples/*.md          按需：示范"什么算够好"
 
 ## 状态与落盘
 
-每次运行在 `$DSH_HOME/code-quality/<session-hash>.json` 写一条记录（先写 running，完成后写 finished + 渲染好的报告）。所以：
+每次运行在 `$DSH_HOME/code-toolkit/<session-hash>.json` 写一条记录（先写 running，完成后写 finished + 渲染好的报告）。所以：
 
 - 重开会话后 `/code-status` 仍能读到最后一次结果
 - 进程在运行中退出，记录停在 running，`/code-status` 会明确说"上次没跑完"
@@ -156,4 +156,4 @@ examples/*.md          按需：示范"什么算够好"
 | `locale` | 命令文案与回退语言；未设置时跟随宿主 `locale.preference`。报告正文按宿主偏好在 8 种官方语言里选，命令描述只提供中/英，其余语言回退英文 |
 | `simplifyModel` | 简化任务使用的模型；不填则跟随当前模型 |
 | `reviewModel` | 审查任务使用的模型；不填则跟随当前模型 |
-| `reportDirectory` | 报告落盘目录，必须是绝对路径；默认 `$DSH_HOME/code-quality` |
+| `reportDirectory` | 报告落盘目录，必须是绝对路径；默认 `$DSH_HOME/code-toolkit` |

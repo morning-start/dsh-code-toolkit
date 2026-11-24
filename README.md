@@ -104,6 +104,6 @@ plugin_manager { action: "install_bundle", target: "<本目录绝对路径>" }
 - 需要独立上下文的原生 `spawn` provider，缺失时报错而非降级。
 - `/code-simplify` 默认不改文件；`--apply` 后子 agent 必须验证，不过则回退。
 - 子 agent 禁止调用委派类工具，不会二次扇出。
-- 报告落盘在 `$DSH_HOME/code-quality/`，重开会话后 `/code-status` 仍可读；跨机器不共享。
+- 报告落盘在 `$DSH_HOME/code-toolkit/`，重开会话后 `/code-status` 仍可读；跨机器不共享。
 
 完整说明见 [docs/DETAIL.md](docs/DETAIL.md)，评测方法见 [evals/ACCEPTANCE.md](evals/ACCEPTANCE.md)。

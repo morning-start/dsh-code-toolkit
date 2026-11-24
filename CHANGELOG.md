@@ -7,6 +7,11 @@
   passes; a toolkit is what it is. Commands are unchanged.
 - Display title is now 代码工具箱 / Code Toolkit, matching the scope: review,
   simplify, scrub.
+- The rename is finished everywhere it is observable: the journal directory is
+  `$DSH_HOME/code-toolkit/`, question ids are `code-toolkit-*`, and the command
+  descriptions say "code-toolkit task". A test now fails if `code-quality`
+  reappears outside this changelog, and another fails if `package.json`,
+  `cordis.patch.yml`, and `index.js` disagree on the name.
 
 ## 0.3.0 — 2026-11-24
 

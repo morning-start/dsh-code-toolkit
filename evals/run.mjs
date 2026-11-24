@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { parseReport, renderReport } from '../src/report.js'
 import { scopeInstruction, scopeLabel, parseArgs, mergeBase } from '../src/selection.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
-import { apply } from '../index.js'
+import { apply, name as pluginName } from '../index.js'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const verbose = process.argv.includes('--verbose')
@@ -92,6 +92,31 @@ test('bundle patch inserts this package', () => {
   const patch = read('cordis.patch.yml')
   assert(/^-\s+insert:/m.test(patch), 'patch needs an insert block')
   assert(patch.includes(pkg.name), `patch must name ${pkg.name}`)
+})
+
+test('plugin id agrees across package.json, the patch, and index.js', () => {
+  const pkg = JSON.parse(read('package.json'))
+  const patch = read('cordis.patch.yml')
+  const patchName = patch.match(/^\s*name:\s*'([^']+)'/m)?.[1]
+  const patchId = patch.match(/^\s*-\s+id:\s*(\S+)/m)?.[1]
+  assertEqual(patchName, pkg.name, 'patch name must be the package name')
+  assertEqual(patchId, pluginName, 'patch id must equal the exported module name')
+})
+
+test('the old package name survives only in the changelog', () => {
+  const stale = /code-quality|代码质量/
+  const offenders = []
+  const scan = (relative) => {
+    if (stale.test(read(relative))) offenders.push(relative)
+  }
+  for (const file of ['package.json', 'cordis.patch.yml', 'README.md', 'AGENTS.md', 'index.js']) scan(file)
+  for (const dir of ['src', 'agents', 'docs', 'locale']) {
+    for (const entry of readdirSync(join(ROOT, dir), { recursive: true })) {
+      const relative = join(dir, entry).replaceAll('\\', '/')
+      if (statSync(join(ROOT, relative)).isFile()) scan(relative)
+    }
+  }
+  assert(offenders.length === 0, `still mentions the old name: ${offenders.join(', ')}`)
 })
 
 test('locale metadata points at an existing detail document', () => {

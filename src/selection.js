@@ -111,7 +111,7 @@ export async function selectScope(ctx, agent, rawInput, signal, t) {
   if (!questions) return { scope: { mode: 'worktree' }, apply: parsed.apply }
 
   const choice = await ask(ctx, agent, {
-    id: 'code-quality-scope',
+    id: 'code-toolkit-scope',
     header: t('select.scope.title'),
     question: t('select.scope.question'),
     options: [
@@ -126,7 +126,7 @@ export async function selectScope(ctx, agent, rawInput, signal, t) {
 
   if (choice === t('option.custom')) {
     const text = await ask(ctx, agent, {
-      id: 'code-quality-instructions',
+      id: 'code-toolkit-instructions',
       question: t('select.instructions'),
     }, signal, t)
     return { scope: { mode: 'instructions', text }, apply: parsed.apply }
@@ -141,7 +141,7 @@ export async function selectScope(ctx, agent, rawInput, signal, t) {
       .filter(Boolean)
       .slice(0, 50)
     const ref = await ask(ctx, agent, {
-      id: 'code-quality-base',
+      id: 'code-toolkit-base',
       question: t('select.base'),
       options: branches.map((label) => ({ label })),
     }, signal, t)
@@ -154,7 +154,7 @@ export async function selectScope(ctx, agent, rawInput, signal, t) {
     return { label: `${sha.slice(0, 10)} ${subject.join('\t')}`, sha }
   })
   const picked = await ask(ctx, agent, {
-    id: 'code-quality-commit',
+    id: 'code-toolkit-commit',
     question: t('select.commit'),
     options: options.map(({ label }) => ({ label })),
   }, signal, t)
