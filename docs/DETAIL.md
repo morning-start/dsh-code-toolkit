@@ -7,8 +7,8 @@
 | 命令 | 作用 | 是否改文件 |
 | --- | --- | --- |
 | `/code-review` | 审查改动，出带优先级的报告 | 只读 |
-| `/code-simplify` | 简化代码：功能逐位不变 | 默认 **dry-run**，只出计划；选「直接改写」才写 |
-| `/code-scrub` | 清理隐私信息：密钥、密码、账号、本机路径 | 默认只报；选「直接改写」才改写 |
+| `/code-simplify` | 简化代码：功能逐位不变 | 默认直接改；加 `report` 只出计划 |
+| `/code-scrub` | 清理隐私信息：密钥、密码、账号、本机路径 | 默认直接改；加 `report` 只出报告 |
 | `/code-caption` | 把难任务装进 caption 循环：一步一验，过程落成台账 | 由循环里的每一步决定 |
 | `/code-status` | 查看运行状态或最近一次结果 | — |
 | `/code-cancel` | 取消正在运行的任务 | — |
@@ -28,13 +28,14 @@
 
 ```text
 /code-review --base main
-/code-review --commit 1a2b3c4
+/code-review sub --commit 1a2b3c4
 /code-simplify --files src/app.js,src/util.js
-/code-simplify --apply
+/code-simplify report
+/code-simplify sub report --base main
 /code-simplify 只看 src/ 下新增的错误处理，别动测试
 ```
 
-`--files` / `--base` / `--commit` 指定范围，`--apply` 单独作为写入开关，其余文本按自定义说明处理。不写 `--apply` 时，`/code-simplify` 与 `/code-scrub` 会在选完范围后再问一次「只出报告，还是直接改写文件？」。
+`--files` / `--base` / `--commit` 指定范围，其余文本按自定义说明处理。`sub` 交给隔离子 agent，`report` 只出报告——两者都是词，位置随意，可叠加。**默认直接改**：`/code-simplify` 与 `/code-scrub` 不再弹窗问「只出报告还是直接改写」，要报告就加 `report`。
 
 ### 为什么命令必须声明 input
 
@@ -53,7 +54,7 @@
 类负责的是所有命令共同的部分：
 
 - 立刻返回回执，任务在后台继续；
-- 范围选择（`userQuestions`）与 `--apply` 询问；
+- 范围选择（`userQuestions`）；
 - `sub` 分流：默认投递给当前会话，`sub` 才起隔离子 agent；
 - 失败时发一条说明，不静默；
 - journal 的 `submitted` / `running` / `finished` 三种状态。
@@ -125,7 +126,7 @@ examples/*.md          按需：示范"什么算够好"
 ### 两条铁律
 
 1. **绝不复述密钥。** 报告里只出现脱敏形态：`sk-ab…9f`（前 4 后 2）、`<12 chars>`（只给长度）、`-----BEGIN … PRIVATE KEY-----`（只给头）、`C:\Users\<user>\…`（保留形状去掉身份）。一份把密钥抄进报告的报告，只是把泄漏搬到了会话记录、日志和用户接下来贴出去的 issue 里。
-2. **先报后改。** 默认只出报告；选「直接改写」才改写，且改完必须验证。
+2. **默认改，报告另说。** 加 `report` 只出报告；要改就必须验证，不过就回退。
 
 ### 分类与优先级
 
@@ -148,7 +149,7 @@ examples/*.md          按需：示范"什么算够好"
 
 这条清单是成败关键：一个把 `process.env.API_KEY` 和作者邮箱都报出来的工具，跑两次就没人看了。
 
-### 「直接改写」怎么改
+### 改写怎么改
 
 按文件类型替换，保留结构、保持文件可解析：`.env` 置空或写占位符；JSON 写 `""`；YAML 用 `${API_KEY}`（当消费方会插值时）；源码改成该语言惯用的环境读取（JS `process.env.X`、Python `os.environ[...]`、Go `os.Getenv`）；文档写 `<redacted>`；本机路径改成 `~` 或 `os.homedir()`。
 
@@ -225,7 +226,7 @@ examples/*.md          按需：示范"什么算够好"
 ## 限制
 
 - 需要宿主提供独立上下文的原生 `spawn` provider；缺失时命令直接报错，不会退化成主 agent 自查。
-- `/code-simplify` 默认不改文件。要真正写入必须在选择框里选「直接改写」，且子 agent 改完必须验证；验证不通过会回退并如实报告。
+- `/code-simplify` 默认直接改；加 `report` 只出计划。子 agent 改完必须验证，验证不通过会回退并如实报告。
 - 子 agent 被禁止调用委派类工具（`subagent`、`workflow`、专家召唤等），不会二次扇出。
 - 报告里的"完成"表示 agent 已返回，不保证它取到了全部 diff 或跑通了测试；具体限制以报告正文为准。
 - `/code-caption` 需要宿主支持向会话注入输入（`agent.steer`）；协议以一条用户消息的形式进入会话历史，因此长期会话里它会被压缩，台账文件才是持久的记忆。

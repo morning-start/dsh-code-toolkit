@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
-import { scopeInstruction, scopeLabel, parseArgs, mergeBase, confirmApply, splitSub } from '../src/selection.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags } from '../src/selection.js'
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
@@ -479,30 +479,24 @@ test('spawn commands keep their input claim so the menu inserts instead of runni
   }
 })
 
-await testAsync('question prompts go through ctx.get, never ctx.userQuestions', async () => {
-  // Cordis throws on `ctx.userQuestions` unless the plugin injects it, and the
-  // service is optional. A property getter that throws reproduces the real
-  // failure: "cannot get property userQuestions without inject".
-  const answers = { answers: [{ id: 'code-toolkit-apply', selected: ['Report only'] }] }
-  const ctx = {
-    get: (name) => (name === 'userQuestions' ? { ask: async () => answers } : undefined),
-  }
-  Object.defineProperty(ctx, 'userQuestions', {
-    get() {
-      throw new Error('cannot get property "userQuestions" without inject')
-    },
-  })
-  const strings = {
-    'apply.title': 'Rewrite mode',
-    'apply.question': 'Report only or rewrite?',
-    'apply.plan': 'Report only',
-    'apply.plan.desc': 'Change no files',
-    'apply.write': 'Rewrite',
-    'apply.write.desc': 'Verify after writing',
-    'error.noScope': 'no scope',
-  }
-  const t = (key) => strings[key] ?? key
-  assertEqual(await confirmApply(ctx, {}, undefined, t), false, 'the plan-only answer is not apply')
+test('flags: sub and report are stripped from the line', () => {
+  const inline = splitFlags('--base main')
+  assertEqual(inline.sub, false, 'inline by default')
+  assertEqual(inline.report, false, 'apply by default')
+  assertEqual(inline.rest, '--base main', 'the line survives')
+
+  const sub = splitFlags('sub --base main')
+  assertEqual(sub.sub, true, 'sub is detected')
+  assertEqual(sub.rest, '--base main', 'sub is removed from the line')
+
+  const report = splitFlags('--files a.js REPORT')
+  assertEqual(report.report, true, 'report is case-insensitive and positional')
+  assertEqual(report.rest, '--files a.js', 'the flag is stripped')
+
+  const both = splitFlags('sub report')
+  assertEqual(both.sub, true, 'both flags')
+  assertEqual(both.report, true, 'both flags')
+  assertEqual(both.rest, '', 'nothing left')
 })
 
 await testAsync('delivery: the report arrives as a user message the model must relay', async () => {
@@ -523,20 +517,6 @@ await testAsync('delivery: the report arrives as a user message the model must r
 
   const zh = reportMessage('报告正文', 'Write in Chinese.', true)
   assert(zh.content[0].text.includes('原样转述'), 'the wrapper follows the host language')
-})
-
-test('sub: routes the task to an isolated agent without swallowing the rest', () => {
-  const inline = splitSub('--base main')
-  assertEqual(inline.sub, false, 'inline by default')
-  assertEqual(inline.rest, '--base main', 'the line survives')
-
-  const sub = splitSub('sub --base main')
-  assertEqual(sub.sub, true, 'sub is detected')
-  assertEqual(sub.rest, '--base main', 'sub is removed from the line')
-
-  const anywhere = splitSub('--files a.js SUB')
-  assertEqual(anywhere.sub, true, 'case-insensitive and positional')
-  assertEqual(anywhere.rest, '--files a.js', 'the flag is stripped')
 })
 
 test('every command goes through the one session shell', () => {

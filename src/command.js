@@ -1,4 +1,4 @@
-import { confirmApply, scopeInstruction, scopeLabel, selectScope, splitSub } from './selection.js'
+import { scopeInstruction, scopeLabel, selectScope, splitFlags } from './selection.js'
 import { failureMessage, reportMessage, userMessage } from './delivery.js'
 import { outputLanguage } from './i18n.js'
 
@@ -67,16 +67,16 @@ export class SessionCommand {
 
   /** Scope-based task: inline by default, isolated with `sub`. */
   task(agent, rawInput, signal, locale, t) {
-    const { sub, rest } = splitSub(rawInput)
+    const { sub, report, rest } = splitFlags(rawInput)
     if (!agent.session?.header?.cwd) return { kind: 'error', text: t('error.noCwd') }
     if (typeof agent?.followup !== 'function') return { kind: 'error', text: t('error.noFollowup') }
     return sub
-      ? this.startIsolated(agent, rest, signal, locale, t)
-      : this.startInline(agent, rest, signal, locale, t)
+      ? this.startIsolated(agent, rest, signal, locale, t, report)
+      : this.startInline(agent, rest, signal, locale, t, report)
   }
 
   /** Queue the task for the current agent and settle immediately. */
-  startInline(agent, rawInput, signal, locale, t) {
+  startInline(agent, rawInput, signal, locale, t, report) {
     const { host } = this
     const controller = new AbortController()
     const combined = AbortSignal.any([signal, controller.signal])
@@ -84,7 +84,7 @@ export class SessionCommand {
     const language = outputLanguage(locale)
     const chinese = String(locale).startsWith('zh')
 
-    void this.prepare(agent, rawInput, combined, locale, t, sessionId)
+    void this.prepare(agent, rawInput, combined, locale, t, sessionId, report)
       .then(
         (task) => {
           if (combined.aborted) return
@@ -101,7 +101,7 @@ export class SessionCommand {
   }
 
   /** Run the isolated agent and deliver its report as a message. */
-  startIsolated(agent, rawInput, signal, locale, t) {
+  startIsolated(agent, rawInput, signal, locale, t, report) {
     const { host, spec } = this
     const key = agent.id
     if (host.running.has(key)) return { kind: 'error', text: t('error.busy') }
@@ -113,7 +113,7 @@ export class SessionCommand {
     const language = outputLanguage(locale)
     const chinese = String(locale).startsWith('zh')
 
-    void this.execute(agent, rawInput, combined, locale, t, sessionId)
+    void this.execute(agent, rawInput, combined, locale, t, sessionId, report)
       .then(
         (text) => {
           if (combined.aborted) return
@@ -131,16 +131,15 @@ export class SessionCommand {
   }
 
   /** Resolve the scope and assemble the task text (shared by both paths). */
-  async prepare(agent, rawInput, combined, locale, t, sessionId) {
+  async prepare(agent, rawInput, combined, locale, t, sessionId, report) {
     const { host, spec } = this
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
 
-    const { scope, apply: fromArgs } = await selectScope(host.ctx, agent, rawInput, combined, t)
+    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t)
     if (!scope) throw new Error(t('error.noScope'))
 
-    const wantsApply = fromArgs || (spec.askApply === true && await confirmApply(host.ctx, agent, combined, t))
-    const mode = spec.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
+    const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
     const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined })
 
     await host.journal
@@ -157,16 +156,15 @@ export class SessionCommand {
   }
 
   /** The isolated run: same preparation, then the child, then the report text. */
-  async execute(agent, rawInput, combined, locale, t, sessionId) {
+  async execute(agent, rawInput, combined, locale, t, sessionId, report) {
     const { host, spec } = this
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
 
-    const { scope, apply: fromArgs } = await selectScope(host.ctx, agent, rawInput, combined, t)
+    const { scope } = await selectScope(host.ctx, agent, rawInput, combined, t)
     if (!scope) throw new Error(t('error.noScope'))
 
-    const wantsApply = fromArgs || (spec.askApply === true && await confirmApply(host.ctx, agent, combined, t))
-    const mode = spec.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
+    const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
     const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined })
 
     await host.journal

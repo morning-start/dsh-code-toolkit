@@ -4,7 +4,7 @@
 
 ## 这个项目是什么
 
-DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带优先级的报告）、`/code-simplify`（精炼，默认 dry-run）、`/code-scrub`（找密钥、账号、本机路径，报告默认脱敏）、`/code-caption`（把难任务装进显式循环，过程落成台账）和 `/pua`（把「失败换方法、完成要证据」的协议注入当前会话）。三件检查默认把任务交给**当前会话**，加 `sub` 才换成**独立上下文的原生 spawn agent**；persona 按 skill 的方式分层组织，并配有一套可运行的评测。`/code-caption` 与 `/pua` 不 spawn，它们把文本注入当前会话——这两类工作要跨轮、要问用户、要一路跑门禁，一次性子 agent 做不了。
+DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带优先级的报告）、`/code-simplify`（精炼，默认直接改）、`/code-scrub`（找密钥、账号、本机路径，默认直接改）、`/code-caption`（把难任务装进显式循环，过程落成台账）和 `/pua`（把「失败换方法、完成要证据」的协议注入当前会话）。三件检查默认把任务交给**当前会话**，加 `sub` 才换成**独立上下文的原生 spawn agent**，加 `report` 只出报告不写盘。
 
 ## 目录契约
 
@@ -141,7 +141,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（71 项，不需要模型）
+npm test                                   # 确定性测试（70 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt

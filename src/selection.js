@@ -62,11 +62,23 @@ export async function mergeBase(cwd, ref, signal) {
   }
 }
 
-/** Parse the raw command line into an explicit scope plus the apply flag. */
-export function splitSub(rawInput) {
+/**
+ * Split the modifier tokens off the command line.
+ *
+ * `sub` routes the task to an isolated agent; `report` asks for a plan instead of
+ * an edit. Both are optional and positional, so `sub report --base main` works.
+ */
+export function splitFlags(rawInput) {
   const tokens = String(rawInput ?? '').trim().split(/\s+/).filter(Boolean)
-  const sub = tokens.some((token) => token.toLowerCase() === 'sub')
-  return { sub, rest: tokens.filter((token) => token.toLowerCase() !== 'sub').join(' ') }
+  const flags = { sub: false, report: false }
+  const rest = []
+  for (const token of tokens) {
+    const lower = token.toLowerCase()
+    if (lower === 'sub') { flags.sub = true; continue }
+    if (lower === 'report') { flags.report = true; continue }
+    rest.push(token)
+  }
+  return { ...flags, rest: rest.join(' ') }
 }
 
 export function parseArgs(rawInput) {
@@ -108,27 +120,6 @@ async function ask(ctx, agent, question, signal, t) {
   const value = (answer.custom ?? '').trim() || answer.selected?.[0] || ''
   if (!value) throw new Error(t('error.noScope'))
   return value
-}
-
-/**
- * Ask whether this run should rewrite files or only report.
- *
- * The command line no longer carries `--apply`: the composer clears only when
- * the command settles, so a long-running handler must not be claimed, and a
- * claimed command is the only kind that receives arguments.
- */
-export async function confirmApply(ctx, agent, signal, t) {
-  if (!ctx.get('userQuestions')) return false
-  const choice = await ask(ctx, agent, {
-    id: 'code-toolkit-apply',
-    header: t('apply.title'),
-    question: t('apply.question'),
-    options: [
-      { label: t('apply.plan'), description: t('apply.plan.desc') },
-      { label: t('apply.write'), description: t('apply.write.desc') },
-    ],
-  }, signal, t)
-  return choice === t('apply.write')
 }
 
 /**

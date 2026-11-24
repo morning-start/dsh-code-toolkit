@@ -4,7 +4,7 @@ DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**
 
 ```text
 /code-review     审查改动，出带优先级的报告（只读）
-/code-simplify   简化代码，功能逐位不变（默认只出计划，选“直接改写”才写）
+/code-simplify   简化代码，功能逐位不变（默认直接改，加 report 只出计划）
 /code-scrub      清理隐私信息：密钥、密码、账号、本机路径（默认只报，报告脱敏）
 /code-caption    把难任务装进 caption 循环：一步一验，过程落成台账
 /pua             给当前会话装上 PUA 协议：失败换方法、完成要证据
@@ -16,10 +16,13 @@ DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**
 
 ```text
 /code-review --base main
-/code-review --commit 1a2b3c4
+/code-review sub --commit 1a2b3c4
 /code-simplify --files src/app.js,src/util.js
-/code-simplify --apply
+/code-simplify report
+/code-simplify sub report --base main
 ```
+
+`sub` 交给子 agent，`report` 只出报告；两者可叠加，位置随意。默认直接改。
 
 命令必须声明 `input`，否则从 `/` 菜单里**选中就执行**，Tab 也当成回车，没法先插入令牌再补参数。
 
@@ -32,7 +35,7 @@ DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**
 | 声明 | 作用 |
 | --- | --- |
 | `kind` | `task` 走范围 + 任务投递（可加 `sub`）；`inject` 往会话里放一段文本；`local` 只读状态或取消 |
-| `forceDryRun` / `askApply` | 只读、默认只出计划、还是问一次再写 |
+| `forceDryRun` / `report` | 只读、默认改写、还是加 `report` 只出报告 |
 | `structured` | 报告是否按结构化格式解析后再渲染 |
 | `persona` | 从 `agents/<role>/` 读到的协议与参考目录 |
 | `descriptionKey` / `hintKey` | 菜单文案，跟随宿主语言 |
@@ -177,7 +180,7 @@ plugin_manager { action: "install_bundle", target: "<本目录绝对路径>" }
 ## 限制
 
 - 需要独立上下文的原生 `spawn` provider，缺失时报错而非降级（`/code-caption` 不需要 spawn，但需要宿主支持向会话注入输入，即 `agent.steer`）。
-- `/code-simplify` 默认不改文件；选「直接改写」后子 agent 必须验证，不过则回退。
+- `/code-simplify` 默认直接改；加 `report` 只出计划。子 agent 改完必须验证，不过则回退。
 - 子 agent 禁止调用委派类工具，不会二次扇出。
 - `/code-caption` 注入的是一条用户消息，会留在会话历史里；台账写在目标仓库的 `docs/caption/`，跨机器不共享。
 - 报告落盘在 `$DSH_HOME/code-toolkit/`，重开会话后 `/code-status` 仍可读；跨机器不共享。

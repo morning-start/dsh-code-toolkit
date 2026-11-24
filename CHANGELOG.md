@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0 — 2026-11-24
+
+- No more apply/report question. `/code-simplify` and `/code-scrub` now **write by
+  default**; add the word `report` to get a plan instead (`/code-simplify report`,
+  `/code-simplify sub report --base main`). `sub` and `report` are positional
+  words, so they compose.
+- The question helper, its i18n copy and its test are gone; the flag parser
+  (`splitFlags`) covers both modifiers and is tested.
+- 70 deterministic checks.
+
 ## 0.12.0 — 2026-11-24
 
 - Extracted the session-interaction ability into one `SessionCommand` class
