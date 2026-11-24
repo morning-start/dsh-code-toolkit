@@ -454,7 +454,7 @@ test('apply() registers every command against a stub host', () => {
   }
 })
 
-test('long-running commands run detached so the composer clears on Enter', () => {
+test('spawn commands keep their input claim so the menu inserts instead of running', () => {
   const registered = []
   apply({
     effect: () => () => {},
@@ -463,19 +463,18 @@ test('long-running commands run detached so the composer clears on Enter', () =>
     commands: { register: (definition) => registered.push(definition) },
   }, {})
 
-  // A claimed command (one that declares `input`) keeps the draft read-only
-  // until its handler settles. These three await a whole subagent run, so they
-  // must execute detached; otherwise the box looks unsent for the entire run.
-  for (const name of ['code-review', 'code-simplify', 'code-scrub']) {
+  // A host command without `input` is executed the moment it is picked from the
+  // `/` menu (Tab included): there is no way to insert the token and keep
+  // typing. The cost is that the composer stays read-only until the handler
+  // settles; that trade-off is deliberate and documented in docs/DETAIL.md.
+  for (const name of ['code-review', 'code-simplify', 'code-scrub', 'code-caption']) {
     const definition = registered.find((item) => item.name === name)
     assert(definition !== undefined, `${name} is registered`)
     assert(
-      definition.input === undefined,
-      `${name} must not declare input — a claimed command freezes the composer until the handler settles`,
+      definition.input !== undefined,
+      `${name} must declare input — without it the menu executes on pick and Tab cannot insert`,
     )
   }
-  const caption = registered.find((item) => item.name === 'code-caption')
-  assert(caption.input !== undefined, 'code-caption settles immediately, so it keeps its input hint')
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {

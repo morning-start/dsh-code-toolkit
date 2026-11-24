@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.0 — 2026-11-24
+
+- Reverted the detached execution from 0.5.1. Without `input`, picking a command
+  from the `/` menu executed it immediately and Tab acted like Enter, so there
+  was no way to insert the token and keep typing. That is worse than the freeze
+  it fixed.
+- The three spawn commands declare `input` again, so `--files` / `--base` /
+  `--commit` / `--apply` work again. The "report only or rewrite" question stays
+  for runs that do not pass `--apply`.
+- The known cost is documented rather than hidden: after Enter the composer
+  stays read-only until the handler settles, which for a review is the whole
+  run. The host ties insert-on-pick and execute-on-pick to the same flag; having
+  both needs a client-side contribution.
+- 57 deterministic checks; the guard now asserts that every command declares
+  `input`.
+
 ## 0.7.0 — 2026-11-24
 
 - `/code-simplify` learned from two real runs. The first (95 files, no test

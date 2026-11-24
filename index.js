@@ -150,14 +150,15 @@ export function apply(ctx, config = {}) {
     }
   }
 
-  // These three run detached on purpose. A command that declares `input` is
-  // submitted as a claim, and the composer keeps the draft read-only until the
-  // handler settles — for a review that is the whole run, so the box looks
-  // unsent. Without `input` the client consumes the token immediately, the
-  // composer clears on Enter, and the result arrives as a command flow node.
+  // These three declare `input` on purpose: a command without it is executed the
+  // moment it is picked from the `/` menu (Tab included), so there is no way to
+  // insert the token and keep typing. The cost is that the composer keeps the
+  // draft read-only until the handler settles — that is the host's rule for a
+  // claimed command, and the only way around it is a client-side contribution.
   ctx.commands.register({
     name: 'code-simplify',
     description: translate(localeNow(), 'cmd.simplify'),
+    input: { hint: translate(localeNow(), 'hint.scope') },
     handler({ agent, rawInput, signal }) {
       return execute(agent, rawInput, signal, {
         command: 'simplify',
@@ -175,6 +176,7 @@ export function apply(ctx, config = {}) {
   ctx.commands.register({
     name: 'code-scrub',
     description: translate(localeNow(), 'cmd.scrub'),
+    input: { hint: translate(localeNow(), 'hint.scrub') },
     handler({ agent, rawInput, signal }) {
       return execute(agent, rawInput, signal, {
         command: 'scrub',
@@ -223,6 +225,7 @@ export function apply(ctx, config = {}) {
   ctx.commands.register({
     name: 'code-review',
     description: translate(localeNow(), 'cmd.review'),
+    input: { hint: translate(localeNow(), 'hint.scope') },
     handler({ agent, rawInput, signal }) {
       return execute(agent, rawInput, signal, {
         command: 'review',
