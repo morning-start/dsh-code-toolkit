@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
-import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags } from '../src/selection.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectScope } from '../src/selection.js'
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
@@ -528,6 +528,18 @@ test('every command goes through the one session shell', () => {
   for (const kind of ["'inject'", "'local'", 'startInline', 'startIsolated']) {
     assert(shell.includes(kind), `the shell is missing ${kind}`)
   }
+})
+
+await testAsync('scope: an empty line means the whole project', async () => {
+  const result = await selectScope({ get: () => undefined }, {}, '', undefined, (key) => key)
+  assertEqual(result.scope.mode, 'project', 'default scope')
+
+  const text = await scopeInstruction({ mode: 'project' })
+  assert(text.includes('whole project'), 'the instruction names the whole project')
+  assertEqual(scopeLabel({ mode: 'project' }), 'whole project', 'label')
+
+  const explicit = await selectScope({ get: () => undefined }, {}, '--files a.js', undefined, (key) => key)
+  assertEqual(explicit.scope.mode, 'files', 'an explicit line still wins')
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {

@@ -108,88 +108,15 @@ export function parseArgs(rawInput) {
   return { scope: { mode: 'instructions', text: line }, apply }
 }
 
-async function ask(ctx, agent, question, signal, t) {
-  // `ctx.userQuestions` throws unless the plugin declares it in `inject`; the
-  // service is optional (headless hosts have no UI), so every access goes
-  // through `ctx.get`.
-  const questions = ctx.get('userQuestions')
-  if (questions === undefined) throw new Error(t('error.noScope'))
-  const result = await questions.ask({ agent, signal, questions: [question] })
-  const answer = result.answers.find((item) => item.id === question.id)
-  if (!answer) throw new Error(t('error.noScope'))
-  const value = (answer.custom ?? '').trim() || answer.selected?.[0] || ''
-  if (!value) throw new Error(t('error.noScope'))
-  return value
-}
-
 /**
- * Resolve a scope: an explicit line wins, otherwise ask the user.
- * Returns null when the user gave nothing usable.
+ * Resolve the scope. An explicit line wins; otherwise the default is the whole
+ * project on the current branch — no question, because a command with no
+ * arguments must do something sensible on its own.
  */
 export async function selectScope(ctx, agent, rawInput, signal, t) {
   const parsed = parseArgs(rawInput)
   if (parsed.scope) return parsed
-
-  const questions = ctx.get('userQuestions')
-  if (!questions) return { scope: { mode: 'worktree' }, apply: parsed.apply }
-
-  const choice = await ask(ctx, agent, {
-    id: 'code-toolkit-scope',
-    header: t('select.scope.title'),
-    question: t('select.scope.question'),
-    options: [
-      { label: t('option.current'), description: t('option.current.desc') },
-      { label: t('option.base'), description: t('option.base.desc') },
-      { label: t('option.commit'), description: t('option.commit.desc') },
-      { label: t('option.custom'), description: t('option.custom.desc') },
-    ],
-  }, signal, t)
-
-  if (choice === t('option.current')) return { scope: { mode: 'worktree' }, apply: parsed.apply }
-
-  if (choice === t('option.custom')) {
-    const text = await ask(ctx, agent, {
-      id: 'code-toolkit-instructions',
-      question: t('select.instructions'),
-    }, signal, t)
-    return { scope: { mode: 'instructions', text }, apply: parsed.apply }
-  }
-
-  const cwd = agent.session?.header?.cwd
-  if (!cwd) throw new Error(t('error.noCwd'))
-
-  if (choice === t('option.base')) {
-    const branches = (await git(cwd, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], signal))
-      .split('\n')
-      .filter(Boolean)
-      .slice(0, 50)
-    const ref = await ask(ctx, agent, {
-      id: 'code-toolkit-base',
-      question: t('select.base'),
-      options: branches.map((label) => ({ label })),
-    }, signal, t)
-    return { scope: { mode: 'base', ref }, apply: parsed.apply }
-  }
-
-  const lines = (await git(cwd, ['log', '-n', '100', '--format=%H%x09%s'], signal)).split('\n').filter(Boolean)
-  const options = lines.map((line) => {
-    const [sha, ...subject] = line.split('\t')
-    return { label: `${sha.slice(0, 10)} ${subject.join('\t')}`, sha }
-  })
-  const picked = await ask(ctx, agent, {
-    id: 'code-toolkit-commit',
-    question: t('select.commit'),
-    options: options.map(({ label }) => ({ label })),
-  }, signal, t)
-  const found = options.find((item) => item.label === picked)
-  return {
-    scope: {
-      mode: 'commit',
-      ref: found?.sha ?? picked,
-      ...(found ? { title: found.label.slice(11) } : {}),
-    },
-    apply: parsed.apply,
-  }
+  return { scope: { mode: 'project' }, apply: parsed.apply }
 }
 
 /**
@@ -201,6 +128,8 @@ export async function scopeInstruction(scope, { cwd, signal } = {}) {
   switch (scope.mode) {
     case 'worktree':
       return 'Scope: the uncommitted changes in this working directory (staged, unstaged, and untracked). Start with `git status --short` and `git diff HEAD`.'
+    case 'project':
+      return 'Scope: the whole project on the current branch — every source file under the repository root, not only the diff. Start by listing the tree and reading the files you will touch; do not limit yourself to recent changes.'
     case 'base': {
       let base
       if (cwd) {
@@ -231,6 +160,8 @@ export function scopeLabel(scope) {
   switch (scope.mode) {
     case 'worktree':
       return 'working tree vs HEAD'
+    case 'project':
+      return 'whole project'
     case 'base':
       return `HEAD vs ${scope.ref}`
     case 'commit':

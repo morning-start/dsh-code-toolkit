@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.0 — 2026-11-24
+
+- Every command now has a default that needs no input: scope is the **whole
+  project on the current branch**, the executor is the current session, and the
+  mode is **write** (add `report` for a plan, `sub` for an isolated agent). The
+  scope picker is gone — `--files` / `--base` / `--commit` / custom text still
+  narrow it.
+- `/code-review` stays read-only by nature; `report` is a no-op there.
+- 71 deterministic checks.
+
 ## 0.13.0 — 2026-11-24
 
 - No more apply/report question. `/code-simplify` and `/code-scrub` now **write by
