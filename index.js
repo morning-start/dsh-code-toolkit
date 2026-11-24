@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url'
 import { outputLanguage, readHostLocale, resolveLocale, translate } from './src/i18n.js'
 import { Journal } from './src/journal.js'
 import { parseReport, renderReport } from './src/report.js'
-import { scopeInstruction, scopeLabel, selectScope, confirmApply } from './src/selection.js'
+import { scopeInstruction, scopeLabel, selectScope, confirmApply, splitSub } from './src/selection.js'
 import { runIsolatedAgent } from './src/runtime.js'
-import { reportMessage, failureMessage } from './src/delivery.js'
+import { reportMessage, failureMessage, userMessage } from './src/delivery.js'
 import { buildPua, flavorList, resolveFlavor } from './src/pua.js'
 
 export const name = 'morning-start-code-toolkit'
@@ -168,7 +168,80 @@ export function apply(ctx, config = {}) {
    * queued user message — the same shape `dsh-code-review` and `dsh-simplify`
    * use. `/code-status` still reads the journal, `/code-cancel` still aborts.
    */
+  /**
+   * Dispatch: the task runs in the current session by default; `sub` hands it to
+   * an isolated agent instead.
+   */
   function start(agent, rawInput, signal, options) {
+    const { sub, rest } = splitSub(rawInput)
+    return sub
+      ? startSub(agent, rest, signal, options)
+      : startInline(agent, rest, signal, options)
+  }
+
+  /** Queue the task into the current session and let the agent work visibly. */
+  function startInline(agent, rawInput, signal, options) {
+    const locale = localeNow()
+    const t = (name) => translate(locale, name)
+    if (!agent.session?.header?.cwd) return { kind: 'error', text: t('error.noCwd') }
+    if (typeof agent?.followup !== 'function') return { kind: 'error', text: t('error.noFollowup') }
+
+    const controller = new AbortController()
+    const combined = AbortSignal.any([signal, controller.signal])
+    const sessionId = agent.session?.id ?? agent.id
+    const language = outputLanguage(locale)
+    const chinese = String(locale).startsWith('zh')
+
+    void prepare(agent, rawInput, combined, options, { locale, t, sessionId })
+      .then(
+        (task) => {
+          if (combined.aborted) return
+          deliver(agent, userMessage(task))
+        },
+        (error) => {
+          if (combined.aborted) return
+          const detail = error instanceof Error ? error.message : String(error)
+          deliver(agent, failureMessage(detail, language, chinese))
+        },
+      )
+
+    return { kind: 'success', text: t('cmd.queued') }
+  }
+
+  /** Scope resolution and prompt assembly for the in-session path. */
+  async function prepare(agent, rawInput, combined, options, { locale, t, sessionId }) {
+    const cwd = agent.session?.header?.cwd
+    if (!cwd) throw new Error(t('error.noCwd'))
+
+    const { scope, apply: fromArgs } = await selectScope(ctx, agent, rawInput, combined, t)
+    if (!scope) throw new Error(t('error.noScope'))
+
+    const wantsApply = fromArgs || (options.askApply === true && await confirmApply(ctx, agent, combined, t))
+    const mode = options.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
+    const prompt = await buildPrompt({
+      persona: options.persona,
+      scope,
+      mode,
+      cwd,
+      locale,
+      signal: combined,
+      dryRunText: options.dryRunText ?? 'Report only. Change no files.',
+    })
+
+    await journal
+      .write(sessionId, {
+        state: 'submitted',
+        command: options.command,
+        scope: scopeLabel(scope),
+        mode,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    return prompt
+  }
+
+  function startSub(agent, rawInput, signal, options) {
     const key = agent.id
     const locale = localeNow()
     const t = (name) => translate(locale, name)
@@ -318,6 +391,9 @@ export function apply(ctx, config = {}) {
       const record = await journal.read(agent.session?.id ?? agent.id).catch(() => undefined)
       if (!record) return { kind: 'success', text: t('status.none') }
       if (record.state === 'running') return { kind: 'success', text: t('status.interrupted') }
+      if (record.state === 'submitted') {
+        return { kind: 'success', text: `${t('status.submitted')}${record.scope} · ${record.mode}` }
+      }
       return { kind: 'success', text: `${t('status.last')}${record.scope} · ${record.mode}\n\n${record.result}` }
     },
   })

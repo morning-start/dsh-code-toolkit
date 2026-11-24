@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
-import { scopeInstruction, scopeLabel, parseArgs, mergeBase, confirmApply } from '../src/selection.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase, confirmApply, splitSub } from '../src/selection.js'
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
@@ -523,6 +523,20 @@ await testAsync('delivery: the report arrives as a user message the model must r
 
   const zh = reportMessage('报告正文', 'Write in Chinese.', true)
   assert(zh.content[0].text.includes('原样转述'), 'the wrapper follows the host language')
+})
+
+test('sub: routes the task to an isolated agent without swallowing the rest', () => {
+  const inline = splitSub('--base main')
+  assertEqual(inline.sub, false, 'inline by default')
+  assertEqual(inline.rest, '--base main', 'the line survives')
+
+  const sub = splitSub('sub --base main')
+  assertEqual(sub.sub, true, 'sub is detected')
+  assertEqual(sub.rest, '--base main', 'sub is removed from the line')
+
+  const anywhere = splitSub('--files a.js SUB')
+  assertEqual(anywhere.sub, true, 'case-insensitive and positional')
+  assertEqual(anywhere.rest, '--files a.js', 'the flag is stripped')
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {

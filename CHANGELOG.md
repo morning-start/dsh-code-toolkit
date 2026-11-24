@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0 — 2026-11-24
+
+- `/code-review`, `/code-simplify` and `/code-scrub` now run **in the current
+  session** by default: the command resolves the scope, then queues the task as a
+  user message and the agent works visibly. Add `sub` to hand the task to the
+  isolated agent instead (`/code-review sub`, `/code-simplify sub --base main`).
+- The in-session path writes a `submitted` journal entry; `/code-status` reports
+  it, and a failed run is still delivered as a message.
+- 70 deterministic checks.
+
 ## 0.10.0 — 2026-11-24
 
 - Added `/pua [flavor]`: installs the PUA protocol into the current session — three

@@ -63,6 +63,12 @@ export async function mergeBase(cwd, ref, signal) {
 }
 
 /** Parse the raw command line into an explicit scope plus the apply flag. */
+export function splitSub(rawInput) {
+  const tokens = String(rawInput ?? '').trim().split(/\s+/).filter(Boolean)
+  const sub = tokens.some((token) => token.toLowerCase() === 'sub')
+  return { sub, rest: tokens.filter((token) => token.toLowerCase() !== 'sub').join(' ') }
+}
+
 export function parseArgs(rawInput) {
   const tokens = rawInput.trim().split(/\s+/).filter(Boolean)
   let apply = false
