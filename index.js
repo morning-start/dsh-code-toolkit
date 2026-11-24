@@ -8,7 +8,7 @@ import { parseReport, renderReport } from './src/report.js'
 import { scopeInstruction, scopeLabel, selectScope } from './src/selection.js'
 import { runIsolatedAgent } from './src/runtime.js'
 
-export const name = 'morning-start-code-quality'
+export const name = 'morning-start-code-toolkit'
 export const inject = ['commands', 'subagents', 'systemPrompt', 'tools']
 
 const ROOT = dirname(fileURLToPath(import.meta.url))

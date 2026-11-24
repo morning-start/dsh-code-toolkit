@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-11-24
+
+- Renamed to `@morning-start/dsh-code-toolkit` (plugin id
+  `morning-start-code-toolkit`). "Code quality" described two of the three
+  passes; a toolkit is what it is. Commands are unchanged.
+- Display title is now 代码工具箱 / Code Toolkit, matching the scope: review,
+  simplify, scrub.
+
 ## 0.3.0 — 2026-11-24
 
 - Added `/code-scrub`: finds credentials, account identifiers, and local paths,

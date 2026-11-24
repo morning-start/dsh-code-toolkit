@@ -1,6 +1,6 @@
-# @morning-start/dsh-code-quality
+# @morning-start/dsh-code-toolkit
 
-DeepSeek Harness 的代码质量插件：**审查**、**精炼**与**隐私清理**都由独立上下文的原生 spawn agent 执行，提示词按 skill 的方式分层组织，并附带可运行的评测。
+DeepSeek Harness 的代码工具箱：**审查**、**精炼**与**隐私清理**三件独立的检查，都由独立上下文的原生 spawn agent 执行，提示词按 skill 的方式分层组织，并附带可运行的评测。
 
 ```text
 /code-review     审查改动，出带优先级的报告（只读）

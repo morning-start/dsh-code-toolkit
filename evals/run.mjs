@@ -88,9 +88,10 @@ test('every declared file and export exists', () => {
 })
 
 test('bundle patch inserts this package', () => {
+  const pkg = JSON.parse(read('package.json'))
   const patch = read('cordis.patch.yml')
   assert(/^-\s+insert:/m.test(patch), 'patch needs an insert block')
-  assert(patch.includes('@morning-start/dsh-code-quality'), 'patch names the package')
+  assert(patch.includes(pkg.name), `patch must name ${pkg.name}`)
 })
 
 test('locale metadata points at an existing detail document', () => {

@@ -1,5 +1,5 @@
-# Insert the code-quality Host plugin into the current profile.
+# Insert the code-toolkit Host plugin into the current profile.
 - insert:
-    - id: morning-start-code-quality
-      name: '@morning-start/dsh-code-quality'
+    - id: morning-start-code-toolkit
+      name: '@morning-start/dsh-code-toolkit'
       config: {}
