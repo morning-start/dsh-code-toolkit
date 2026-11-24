@@ -138,7 +138,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（54 项，不需要模型）
+npm test                                   # 确定性测试（56 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt
@@ -154,6 +154,7 @@ node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/re
 
 - 不要把 persona 合回一个文件。
 - 不要把 `/code-caption` 改成 spawn 子 agent：它要跨轮、要问用户、要连续跑门禁，一次性的子 agent 会把这三件事都丢掉。
+- 不要让分派绕过独占路径：分析线只读可以并行，实现线两个写者碰同一个文件（含 barrel、配置、共用测试）就是设计出来的冲突，合并后没人能解释红在哪。
 - 不要为让测试通过而放松解析器或删检查。
 - 不要注册 tool，也不要给子 agent 开放委派类工具。
 - 不要引入 npm 依赖。

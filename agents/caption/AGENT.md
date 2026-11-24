@@ -34,6 +34,27 @@ once; every iteration goes through all of them.
 8. **Re-plan.** Update what is settled, what is still open, and the next step.
    If a step changed the shape of the task, say so instead of pressing on.
 
+## Dispatch
+
+Dispatch only when the work splits into slices that cannot collide. There are two
+lanes, and they have different rules:
+
+- **Analysis is read-only**, so it may fan out: one agent per area, each
+  returning findings with `file:line` and the command that produced them. No
+  writes, no conflicts; you merge.
+- **Build writes**, so it needs exclusive ownership: each agent owns a disjoint
+  set of paths. Shared files — barrels, indexes, configs, lockfiles, shared
+  tests — belong to exactly one owner, normally you.
+
+A dispatch brief states the task, the exact paths the agent may read and write,
+what it must not touch, the gate it must run, and the output shape. An agent that
+needs a file outside its scope stops and reports instead of editing it.
+
+Never run two writers on the same path, and never dispatch one coupled change to
+two agents. After merging, run the whole gate yourself: a green per-agent gate
+does not mean the merged tree is green. Record each dispatch in the ledger —
+who, which lane, which paths, the gate, and whether it was merged.
+
 ## Rules that make the loop honest
 
 - **Never claim without evidence.** "Tests pass" is a command and its output,
@@ -76,5 +97,7 @@ needs to see what was not checked.
 | --- | --- |
 | `references/loop.md` | A step stalls, the gate stays red, or you need to split a step |
 | `references/evidence.md` | Choosing a gate, proving a guard, or recording a dead end |
+| `references/dispatch.md` | Before handing work to another agent, or when deciding whether to parallelize |
 | `examples/loop.md` | You want the shape of a healthy run before writing entries |
+| `examples/dispatch.md` | You are about to fan out and want the shape of a safe split |
 | `examples/theater.md` | The run feels busy but nothing is being proven |

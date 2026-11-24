@@ -512,6 +512,22 @@ test('caption: the protocol carries the loop, not a checklist', () => {
   }
 })
 
+test('caption: dispatch is limited to slices that cannot collide', () => {
+  const text = read('agents/caption/AGENT.md')
+  for (const marker of [
+    'Analysis is read-only',
+    'disjoint',
+    'exactly one owner',
+    'Never run two writers on the same path',
+  ]) {
+    assert(text.includes(marker), `the dispatch rule is missing: ${marker}`)
+  }
+  const reference = read('agents/caption/references/dispatch.md')
+  for (const marker of ['exclusive', 'shared files', 'Merging']) {
+    assert(reference.toLowerCase().includes(marker.toLowerCase()), `dispatch.md is missing: ${marker}`)
+  }
+})
+
 testAsync('caption: task and protocol are steered into the session', async () => {
   const definition = captionDefinition()
   const steered = []

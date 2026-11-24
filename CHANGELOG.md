@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.0 — 2026-11-24
+
+- `/code-caption` can dispatch subagents, under a two-lane rule: analysis is
+  read-only and may fan out; build writes and needs exclusive paths, with shared
+  files (barrels, indexes, configs, lockfiles, shared tests) owned by exactly one
+  agent — normally the integrator. A brief that does not say what may be written
+  is an invitation to collide.
+- After merging, the integrator runs the whole gate: a green per-agent gate does
+  not mean the merged tree is green. Each dispatch is recorded in the ledger
+  (lane, paths, gate, merged or rejected).
+- 56 deterministic checks. The dispatch behaviour is not yet measured by a model
+  run: `09-caption-dispatch` is defined (two modules, one shared fixture and one
+  barrel) but has never been scored, and `08-caption-loop` does not exercise it.
+
 ## 0.5.1 — 2026-11-24
 
 - Fixed the composer keeping the text after Enter. `/code-review`,

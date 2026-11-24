@@ -1,0 +1,9 @@
+{
+  "mode": "caption",
+  "requireGroups": [
+    ["并行", "parallel", "分派", "dispatch"],
+    ["独占", "exclusive", "owner", "拥有"],
+    ["shared.js", "index.js", "共享"]
+  ],
+  "forbid": ["两个 agent 都改", "both agents edit"]
+}

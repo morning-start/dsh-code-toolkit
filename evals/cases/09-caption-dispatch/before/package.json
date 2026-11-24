@@ -1,0 +1,8 @@
+{
+  "name": "caption-dispatch-case",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
