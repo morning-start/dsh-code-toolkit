@@ -169,6 +169,18 @@ node evals/score.mjs --case 01-null-header --report tmp/eval/01/with/report.txt
 
 没有复制它们的代码：借鉴的是结构与交互，persona、报告格式、评测流程都是本仓库自己的。关键差异是——我们的 `/code-review`、`/code-scrub` 跑在**独立上下文的子 agent** 里（第二双眼睛），参考项目的 `/simplify` 则把任务交给当前会话。
 
+## 配置
+
+`cordis.patch.yml` 的 `config` 可以覆盖下面几项，不写就用默认值：
+
+| 键 | 作用 | 默认 |
+| --- | --- | --- |
+| `reportDirectory` | journal 落盘目录，必须是绝对路径 | `$DSH_HOME/code-toolkit` |
+| `reviewModel` / `simplifyModel` / `scrubModel` | 该命令的子 agent 用哪个模型 | 宿主默认 |
+| `locale` | 强制输出语言（`zh`、`en`…） | 跟随宿主 |
+
+写错不会拖到运行时：相对路径、空模型名在插件加载时直接报错。
+
 ## 安装
 
 ```powershell

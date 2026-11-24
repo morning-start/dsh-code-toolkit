@@ -1,4 +1,16 @@
 # Insert the code-toolkit Host plugin into the current profile.
+#
+# Every config key is optional; the defaults are what the commands use when the
+# block below stays empty.
+#
+#   reportDirectory  absolute path for the journal   default: $DSH_HOME/code-toolkit
+#   reviewModel      model id for the review child   default: the host's model
+#   simplifyModel    model id for the simplify child default: the host's model
+#   scrubModel       model id for the scrub child    default: the host's model
+#   locale           force the output language       default: follow the host
+#
+# An invalid value (a relative reportDirectory, an empty model name) fails at
+# load time instead of at the first command.
 - insert:
     - id: morning-start-code-toolkit
       name: '@morning-start/dsh-code-toolkit'
