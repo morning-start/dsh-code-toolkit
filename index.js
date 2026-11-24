@@ -8,6 +8,7 @@ import { parseReport, renderReport } from './src/report.js'
 import { scopeInstruction, scopeLabel, selectScope, confirmApply } from './src/selection.js'
 import { runIsolatedAgent } from './src/runtime.js'
 import { reportMessage, failureMessage } from './src/delivery.js'
+import { buildPua, flavorList, resolveFlavor } from './src/pua.js'
 
 export const name = 'morning-start-code-toolkit'
 export const inject = ['commands', 'subagents', 'systemPrompt', 'tools']
@@ -73,6 +74,7 @@ export function apply(ctx, config = {}) {
   const reviewPersona = loadPersona('review')
   const scrubPersona = loadPersona('scrub')
   const captionPersona = loadPersona('caption')
+  const puaPersona = loadPersona('pua')
 
   /** agentId -> { controller, label, startedAt } */
   const running = new Map()
@@ -281,6 +283,26 @@ export function apply(ctx, config = {}) {
         forceDryRun: true,
         structured: true,
       })
+    },
+  })
+
+  ctx.commands.register({
+    name: 'pua',
+    description: translate(localeNow(), 'cmd.pua'),
+    input: { hint: translate(localeNow(), 'hint.pua') },
+    async handler({ agent, rawInput }) {
+      const locale = localeNow()
+      const t = (key) => translate(locale, key)
+      const argument = String(rawInput ?? '').trim()
+      if (argument === 'list') return { kind: 'success', text: flavorList(t('pua.list')) }
+      if (typeof agent?.steer !== 'function') return { kind: 'error', text: t('error.noSteer') }
+
+      const flavor = resolveFlavor(argument)
+      await agent.steer({
+        content: [{ type: 'text', text: buildPua(flavor, puaPersona.text, outputLanguage(locale)) }],
+        source: { kind: 'user' },
+      })
+      return { kind: 'success', text: t('pua.installed').replace('{flavor}', flavor.label) }
     },
   })
 

@@ -111,7 +111,7 @@ function scoreGroups(mode) {
   return { case: caseName, mode, pass, groups, forbidden }
 }
 
-const result = ['simplify', 'caption'].includes(expected.mode) ? scoreGroups(expected.mode) : scoreReview()
+const result = ['simplify', 'caption', 'pua'].includes(expected.mode) ? scoreGroups(expected.mode) : scoreReview()
 
 if (asJson) {
   console.log(JSON.stringify(result, null, 2))

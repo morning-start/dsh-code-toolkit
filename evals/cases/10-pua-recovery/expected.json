@@ -1,0 +1,9 @@
+{
+  "mode": "pua",
+  "requireGroups": [
+    ["证据", "evidence", "输出", "output", "命令"],
+    ["换方法", "换一个", "different approach", "change the method", "改方法"],
+    ["5432", "端口", "port", "env"]
+  ],
+  "forbid": ["请手动", "please start", "environment issue", "环境问题"]
+}

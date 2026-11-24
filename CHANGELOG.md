@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0 — 2026-11-24
+
+- Added `/pua [flavor]`: installs the PUA protocol into the current session — three
+  red lines (evidence before "done", verify before blaming, exhaust the five steps
+  before "I can't"), L0–L4 escalation, the five-step method, and the iceberg rule.
+  `/pua list` lists the eight flavors; a flavor changes the tone, not the rules.
+- The protocol lives in `agents/pua/` (AGENT.md, flavors, methodology, example).
+- Case `10-pua-recovery`: a stale port in `.env.test` whose error looks like "the
+  service is down"; the run has to change method and paste evidence instead of
+  blaming the environment.
+- 69 deterministic checks. The case is defined but has not been run against a model.
+
 ## 0.9.0 — 2026-11-24
 
 - The three spawn commands settle immediately: the handler returns a receipt and

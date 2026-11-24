@@ -145,6 +145,7 @@ const ROLES = {
   review: ['Resolve the scope', 'The eight gates', 'Priorities', 'Output', 'Reference files'],
   simplify: ['Three iron rules', 'Six operations', 'Anti-patterns', 'Verification', 'Reference files'],
   caption: ['The loop', 'Read the ledger first', 'Verify', 'Record one caption entry', 'Reference files'],
+  pua: ['Three red lines', 'Pressure escalation', 'The five steps', 'Reference files'],
 }
 
 for (const [role, sections] of Object.entries(ROLES)) {
@@ -406,8 +407,8 @@ for (const name of cases) {
     assert(existsSync(join(dir, 'README.md')), 'README.md explains the case')
     assert(existsSync(join(dir, 'before')), 'before/ tree')
     const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'))
-    assert(['review', 'simplify', 'scrub', 'caption'].includes(expected.mode), 'mode')
-    if (expected.mode === 'simplify' || expected.mode === 'caption') {
+    assert(['review', 'simplify', 'scrub', 'caption', 'pua'].includes(expected.mode), 'mode')
+    if (['simplify', 'caption', 'pua'].includes(expected.mode)) {
       assert(Array.isArray(expected.requireGroups) && expected.requireGroups.length, 'requireGroups')
     } else {
       assert(Array.isArray(expected.findings), 'findings array')
@@ -446,7 +447,7 @@ test('apply() registers every command against a stub host', () => {
   const names = registered.map((definition) => definition.name).sort()
   assertEqual(
     names.join(','),
-    'code-cancel,code-caption,code-review,code-scrub,code-simplify,code-status',
+    'code-cancel,code-caption,code-review,code-scrub,code-simplify,code-status,pua',
     'registered commands',
   )
   for (const definition of registered) {
@@ -551,8 +552,7 @@ function captionDefinition() {
   return registered.find((definition) => definition.name === 'code-caption')
 }
 
-test('simplify: no gate, no apply, and the plan ranks by value', () => {
-  const text = read('agents/simplify/AGENT.md')
+test('simplify: no gate, no apply, and the plan ranks by value', () => {  const text = read('agents/simplify/AGENT.md')
   for (const marker of [
     'Value before volume',
     'characterization baseline',
@@ -632,6 +632,45 @@ await testAsync('caption: a host without steer fails loudly', async () => {
 })
 
 // ---------------------------------------------------------------------------
+
+function puaDefinition() {
+  const registered = []
+  apply({
+    effect: () => () => {},
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: (definition) => registered.push(definition) },
+  }, {})
+  return registered.find((definition) => definition.name === 'pua')
+}
+
+await testAsync('pua: list names the flavors without steering anything', async () => {
+  const steered = []
+  const agent = {
+    id: 'a1',
+    session: { header: { cwd: 'C:\\work\\demo' } },
+    steer: async (message) => steered.push(message),
+  }
+  const result = await puaDefinition().handler({ agent, rawInput: 'list' })
+  assertEqual(result.kind, 'success', 'kind')
+  assert(result.text.includes('alibaba'), 'names the flavors')
+  assertEqual(steered.length, 0, 'list must not steer')
+})
+
+await testAsync('pua: a flavor is steered together with the protocol', async () => {
+  const steered = []
+  const agent = {
+    id: 'a1',
+    session: { header: { cwd: 'C:\\work\\demo' } },
+    steer: async (message) => steered.push(message),
+  }
+  const result = await puaDefinition().handler({ agent, rawInput: 'huawei' })
+  assertEqual(result.kind, 'success', 'kind')
+  assertEqual(steered.length, 1, 'exactly one steer')
+  const text = steered[0].content[0].text
+  assert(text.includes('Three red lines'), 'the protocol travels with the flavor')
+  assert(text.includes('华为'), 'the chosen flavor is the one injected')
+})
 
 console.log(`\n${passed} passed, ${failures.length} failed`)
 if (failures.length) {
