@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 import { parseReport, renderReport } from '../src/report.js'
 import { scopeInstruction, scopeLabel, parseArgs, mergeBase } from '../src/selection.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
+import { apply } from '../index.js'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const verbose = process.argv.includes('--verbose')
@@ -395,6 +396,52 @@ for (const name of cases) {
     }
   })
 }
+
+// ---------------------------------------------------------------------------
+// G. plugin wiring
+// ---------------------------------------------------------------------------
+
+test('apply() registers every command against a stub host', () => {
+  const registered = []
+  const ctx = {
+    effect: (fn) => {
+      fn()
+      return () => {}
+    },
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: (definition) => registered.push(definition) },
+  }
+
+  apply(ctx, {})
+
+  const names = registered.map((definition) => definition.name).sort()
+  assertEqual(
+    names.join(','),
+    'code-cancel,code-review,code-scrub,code-simplify,code-status',
+    'registered commands',
+  )
+  for (const definition of registered) {
+    assert(typeof definition.description === 'string' && definition.description.length > 0, `${definition.name}: description`)
+    assert(typeof definition.handler === 'function', `${definition.name}: handler`)
+  }
+})
+
+test('apply() rejects an invalid config instead of failing later', () => {
+  const ctx = {
+    effect: () => () => {},
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: () => {} },
+  }
+  let threw = false
+  try {
+    apply(ctx, { reportDirectory: 'relative/dir' })
+  } catch {
+    threw = true
+  }
+  assert(threw, 'a relative reportDirectory must be rejected')
+})
 
 // ---------------------------------------------------------------------------
 
