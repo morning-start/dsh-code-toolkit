@@ -100,7 +100,7 @@ function scoreReview() {
   }
 }
 
-function scoreSimplify() {
+function scoreGroups(mode) {
   const text = raw.toLowerCase()
   const groups = (expected.requireGroups ?? []).map((group) => ({
     any: group,
@@ -108,10 +108,10 @@ function scoreSimplify() {
   }))
   const forbidden = (expected.forbid ?? []).filter((needle) => text.includes(needle.toLowerCase()))
   const pass = groups.every((group) => group.hit) && forbidden.length === 0
-  return { case: caseName, mode: 'simplify', pass, groups, forbidden }
+  return { case: caseName, mode, pass, groups, forbidden }
 }
 
-const result = expected.mode === 'simplify' ? scoreSimplify() : scoreReview()
+const result = ['simplify', 'caption'].includes(expected.mode) ? scoreGroups(expected.mode) : scoreReview()
 
 if (asJson) {
   console.log(JSON.stringify(result, null, 2))

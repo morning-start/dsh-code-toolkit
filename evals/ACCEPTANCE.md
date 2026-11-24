@@ -21,6 +21,11 @@ run again.
 A persona that finds everything but invents two findings per run is worse than
 one that finds 80% and invents nothing, because the author stops reading.
 
+A caption case is scored differently: the closing report must contain a command
+and its result (evidence), a recorded dead end or unverified item, and a named
+gate. That measures the shape of the loop, not the quality of the fix; whether
+the evidence is real has to be read from the ledger by hand.
+
 ## The cases
 
 | Case | Mode | What it tests |
@@ -32,6 +37,7 @@ one that finds 80% and invents nothing, because the author stops reading.
 | `05-simplify-reject` | simplify | noticing that the obvious rewrite swallows `NaN` |
 | `06-scrub-secrets` | scrub | three real leaks among four decoys; the report must stay masked |
 | `07-scrub-clean` | scrub | env refs, placeholders and public metadata — report nothing |
+| `08-caption-loop` | caption | the obvious fix leaves the second test red; the run must record a dead end instead of claiming a clean sweep |
 
 Each case is a `before/` tree, an optional `after/` tree (the change), a
 `README.md` explaining the trap, and `expected.json` with the labels.

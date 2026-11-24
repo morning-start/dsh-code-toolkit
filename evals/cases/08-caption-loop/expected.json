@@ -1,0 +1,9 @@
+{
+  "mode": "caption",
+  "requireGroups": [
+    ["node --test", "npm test"],
+    ["反证", "故意破坏", "故意改坏", "故意放行", "break", "mutation"],
+    ["死路", "dead end", "未验证", "unverified"]
+  ],
+  "forbid": ["nothing left to verify", "全部验证完毕"]
+}

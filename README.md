@@ -1,11 +1,12 @@
 # @morning-start/dsh-code-toolkit
 
-DeepSeek Harness 的代码工具箱：**审查**、**精炼**与**隐私清理**三件独立的检查，都由独立上下文的原生 spawn agent 执行，提示词按 skill 的方式分层组织，并附带可运行的评测。
+DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**三件隔离检查，外加一条把难任务装进显式循环的协议命令。前三件由独立上下文的原生 spawn agent 执行；`/code-caption` 把循环装进当前会话——这类工作要跨轮、要问你、要一路跑门禁，交给一次性子 agent 就废了。
 
 ```text
 /code-review     审查改动，出带优先级的报告（只读）
 /code-simplify   简化代码，功能逐位不变（默认 dry-run，--apply 才写）
 /code-scrub      清理隐私信息：密钥、密码、账号、本机路径（默认只报，报告脱敏）
+/code-caption    把难任务装进 caption 循环：一步一验，过程落成台账
 /code-status     查看状态或最近一次结果
 /code-cancel     取消运行中的任务
 ```
@@ -47,6 +48,12 @@ agents/scrub/
   references/redaction.md  各类文件的替换形态与验证
   examples/report.md       一条脱敏后的合格发现
   examples/clean.md        "看着可疑但干净"的仓库
+agents/caption/
+  AGENT.md                 注入当前会话的循环：观察、一步、验证、记账、重排
+  references/loop.md       步怎么切、门禁红了怎么办、压缩后怎么恢复
+  references/evidence.md   证据等级、门禁选择、反证、死路与未验证清单
+  examples/loop.md         一次健康的运行
+  examples/theater.md      忙碌但什么都没证明的运行
 ```
 
 `AGENT.md` 是常驻部分（每个命令都注入），`references/` 与 `examples/` 是**按需加载**：子 agent 手上有读文件工具，persona 里写明"什么时候该读哪一份"。这样核心提示词保持短，深度内容随取随用，和 skill 的 progressive disclosure 是同一套机制——区别只在触发方式和运行方式（见下）。
@@ -64,6 +71,16 @@ agents/scrub/
 | 状态、取消、落盘 | 能 | 不能 |
 
 最硬的一条是隔离：主 agent 审查自己刚写的改动会带着"我当时为什么这么写"的记忆；简化也会顺着自己的思路改。skill 只能把文本塞进当前上下文，正好抹掉这个性质。所以 persona 放在插件里，按 skill 的方式组织。
+
+## caption 循环
+
+`/code-caption <任务>` 是这套东西里唯一不 spawn 的命令，因为它的对象不是一次检查，而是**一次长任务的进行方式**。
+
+它注入的不是一张清单，而是一个循环：读台账 → 看真实状态 → 只做一步 → 动手（锚点唯一、改完读回）→ 跑门禁 → 给新守卫做反证 → 记一条 caption 并提交 → 重排下一步。循环的产物是 `docs/caption/<slug>.md`：头部写任务、判据、门禁，每条写看到什么、判断什么、做了什么、命令与结果、结论（done / dead end / unverified）。
+
+三条规则是它的全部价值：**没有证据就不许声称**、**死路要留痕**、**判据满足才收口，清单空了不算**。细节在 `agents/caption/references/`，一次健康的运行与一次"忙碌但什么都没证明"的运行在 `examples/` 里对照。
+
+跟 DSH 自带的 `/plan` 是串联关系：`/plan` 管"先想、方案要你批"，`/code-caption` 管"批了之后怎么按依赖做完并证明做完了"。
 
 ## 评测
 
@@ -101,9 +118,10 @@ plugin_manager { action: "install_bundle", target: "<本目录绝对路径>" }
 
 ## 限制
 
-- 需要独立上下文的原生 `spawn` provider，缺失时报错而非降级。
+- 需要独立上下文的原生 `spawn` provider，缺失时报错而非降级（`/code-caption` 不需要 spawn，但需要宿主支持向会话注入输入，即 `agent.steer`）。
 - `/code-simplify` 默认不改文件；`--apply` 后子 agent 必须验证，不过则回退。
 - 子 agent 禁止调用委派类工具，不会二次扇出。
+- `/code-caption` 注入的是一条用户消息，会留在会话历史里；台账写在目标仓库的 `docs/caption/`，跨机器不共享。
 - 报告落盘在 `$DSH_HOME/code-toolkit/`，重开会话后 `/code-status` 仍可读；跨机器不共享。
 
 完整说明见 [docs/DETAIL.md](docs/DETAIL.md)，评测方法见 [evals/ACCEPTANCE.md](evals/ACCEPTANCE.md)。

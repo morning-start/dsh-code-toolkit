@@ -143,6 +143,7 @@ test('icon is self-contained svg', () => {
 const ROLES = {
   review: ['Resolve the scope', 'The eight gates', 'Priorities', 'Output', 'Reference files'],
   simplify: ['Three iron rules', 'Six operations', 'Anti-patterns', 'Verification', 'Reference files'],
+  caption: ['The loop', 'Read the ledger first', 'Verify', 'Record one caption entry', 'Reference files'],
 }
 
 for (const [role, sections] of Object.entries(ROLES)) {
@@ -380,7 +381,7 @@ const cases = readdirSync(caseRoot).filter((name) => statSync(join(caseRoot, nam
 
 test('there is at least one case per mode', () => {
   const modes = cases.map((name) => JSON.parse(read(`evals/cases/${name}/expected.json`)).mode)
-  for (const mode of ['review', 'simplify', 'scrub']) {
+  for (const mode of ['review', 'simplify', 'scrub', 'caption']) {
     assert(modes.includes(mode), `no case with mode "${mode}"`)
   }
 })
@@ -404,8 +405,10 @@ for (const name of cases) {
     assert(existsSync(join(dir, 'README.md')), 'README.md explains the case')
     assert(existsSync(join(dir, 'before')), 'before/ tree')
     const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'))
-    assert(['review', 'simplify', 'scrub'].includes(expected.mode), 'mode')
-    if (expected.mode !== 'simplify') {
+    assert(['review', 'simplify', 'scrub', 'caption'].includes(expected.mode), 'mode')
+    if (expected.mode === 'simplify' || expected.mode === 'caption') {
+      assert(Array.isArray(expected.requireGroups) && expected.requireGroups.length, 'requireGroups')
+    } else {
       assert(Array.isArray(expected.findings), 'findings array')
       for (const finding of expected.findings) {
         assert(typeof finding.file === 'string', 'finding.file')
@@ -417,8 +420,6 @@ for (const name of cases) {
         assert(Array.isArray(expected.mustNotLeak), 'mustNotLeak is an array')
         assert(expected.mustNotLeak.every((item) => typeof item === 'string'), 'mustNotLeak entries are strings')
       }
-    } else {
-      assert(Array.isArray(expected.requireGroups) && expected.requireGroups.length, 'requireGroups')
     }
   })
 }
@@ -444,7 +445,7 @@ test('apply() registers every command against a stub host', () => {
   const names = registered.map((definition) => definition.name).sort()
   assertEqual(
     names.join(','),
-    'code-cancel,code-review,code-scrub,code-simplify,code-status',
+    'code-cancel,code-caption,code-review,code-scrub,code-simplify,code-status',
     'registered commands',
   )
   for (const definition of registered) {
@@ -467,6 +468,65 @@ test('apply() rejects an invalid config instead of failing later', () => {
     threw = true
   }
   assert(threw, 'a relative reportDirectory must be rejected')
+})
+
+function captionDefinition() {
+  const registered = []
+  apply({
+    effect: () => () => {},
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: (definition) => registered.push(definition) },
+  }, {})
+  return registered.find((definition) => definition.name === 'code-caption')
+}
+
+test('caption: the protocol carries the loop, not a checklist', () => {
+  const text = read('agents/caption/AGENT.md')
+  for (const marker of ['Read the ledger first', 'Verify', 'Record one caption entry', 'dead end', 'unverified']) {
+    assert(text.includes(marker), `the protocol is missing: ${marker}`)
+  }
+})
+
+testAsync('caption: task and protocol are steered into the session', async () => {
+  const definition = captionDefinition()
+  const steered = []
+  const agent = {
+    id: 'a1',
+    session: { header: { cwd: 'C:\\work\\demo' } },
+    steer: (message) => { steered.push(message) },
+  }
+
+  const result = await definition.handler({ agent, rawInput: 'make the suite green' })
+
+  assertEqual(result.kind, 'success', 'kind')
+  assertEqual(steered.length, 1, 'exactly one steered message')
+  const text = steered[0].content[0].text
+  assert(text.includes('make the suite green'), 'carries the task')
+  assert(text.includes('Reference directory:'), 'names the reference directory')
+  assert(text.includes('Record one caption entry'), 'carries the loop')
+  assert(text.includes('caption'), 'names the ledger directory')
+})
+
+testAsync('caption: an empty task is refused before anything is steered', async () => {
+  const definition = captionDefinition()
+  const steered = []
+  const agent = { id: 'a1', session: { header: { cwd: 'C:\\work\\demo' } }, steer: (m) => steered.push(m) }
+
+  const result = await definition.handler({ agent, rawInput: '   ' })
+
+  assertEqual(result.kind, 'error', 'kind')
+  assertEqual(steered.length, 0, 'nothing is steered')
+})
+
+testAsync('caption: a host without steer fails loudly', async () => {
+  const definition = captionDefinition()
+  const agent = { id: 'a1', session: { header: { cwd: 'C:\\work\\demo' } } }
+
+  const result = await definition.handler({ agent, rawInput: 'do the thing' })
+
+  assertEqual(result.kind, 'error', 'kind')
+  assert(result.text.length > 0, 'says why it cannot run')
 })
 
 // ---------------------------------------------------------------------------

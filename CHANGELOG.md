@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.0 — 2026-11-24
+
+- Added `/code-caption`: it installs an explicit working loop into the current
+  session instead of spawning an agent. The loop is observe → one step → verify
+  → prove a new guard → record a caption and commit → re-plan, and it exists
+  because a long task loses the thread under compaction: which command ran, what
+  it printed, which route already failed.
+- The ledger (`docs/caption/<slug>.md`) is the durable memory, with one entry per
+  iteration and an outcome of `done`, `dead end`, or `unverified`.
+- This is the first command here that is not an isolated-agent pass, and the
+  first that depends on `agent.steer`. The rest of the plugin is unchanged.
+- Case `08-caption-loop`: two failing tests where the obvious fix leaves the
+  second one red, so the run has to record a dead end instead of claiming a
+  clean sweep.
+- 53 deterministic checks.
+
 ## 0.4.0 — 2026-11-24
 
 - Renamed to `@morning-start/dsh-code-toolkit` (plugin id

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Code Toolkit",
-    "description": "Three isolated-agent passes: code review behind an eight-gate filter, behavior-preserving simplification that plans by default, and privacy scrubbing that reports masked findings and only rewrites with --apply. Prompts are organised as a layered skill-style tree, with a deterministic test suite and a model evaluation loop.",
+    "description": "Four commands: three isolated checks — code review behind an eight-gate filter, behavior-preserving simplification that plans by default, and privacy scrubbing that reports masked findings and only rewrites with --apply — plus a caption loop that installs an explicit observe/verify/record cycle into the current session and keeps a ledger of every step. Prompts are organised as a layered skill-style tree, with a deterministic test suite and a model evaluation loop.",
     "detail": "docs/DETAIL.md"
   }
 }

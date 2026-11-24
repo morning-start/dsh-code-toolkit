@@ -61,6 +61,7 @@ export function apply(ctx, config = {}) {
   const simplifyPersona = loadPersona('simplify')
   const reviewPersona = loadPersona('review')
   const scrubPersona = loadPersona('scrub')
+  const captionPersona = loadPersona('caption')
 
   /** agentId -> { controller, label, startedAt } */
   const running = new Map()
@@ -179,6 +180,37 @@ export function apply(ctx, config = {}) {
         structured: true,
         dryRunText: 'Report only. Change no files, and never reproduce a secret in the report.',
       })
+    },
+  })
+
+  ctx.commands.register({
+    name: 'code-caption',
+    description: translate(localeNow(), 'cmd.caption'),
+    input: { hint: translate(localeNow(), 'hint.caption') },
+    async handler({ agent, rawInput }) {
+      const locale = localeNow()
+      const t = (key) => translate(locale, key)
+      const task = String(rawInput ?? '').trim()
+      if (!task) return { kind: 'error', text: t('caption.needsTask') }
+      if (typeof agent?.steer !== 'function') return { kind: 'error', text: t('error.noSteer') }
+
+      const cwd = agent.session?.header?.cwd
+      const text = [
+        '# Caption loop',
+        '',
+        `Task: ${task}`,
+        ...(cwd ? [`Working directory: ${cwd}`, `Ledger directory: ${join(cwd, 'docs', 'caption')}`] : []),
+        `Reference directory: ${captionPersona.directory}`,
+        '',
+        captionPersona.text,
+        '',
+        outputLanguage(locale),
+      ].join('\n')
+
+      // The command plane does not submit a model message, so the protocol has
+      // to be steered in: it becomes the next step's ordinary user message.
+      await agent.steer({ content: [{ type: 'text', text }], source: { kind: 'user' } })
+      return { kind: 'success', text: t('caption.installed') }
     },
   })
 
