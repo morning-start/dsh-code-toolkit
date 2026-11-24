@@ -3,16 +3,22 @@
   "version": "0.15.0",
   "private": true,
   "type": "module",
-  "description": "A toolkit of isolated-agent passes for DeepSeek Harness: code review, behavior-preserving simplification, and privacy scrubbing (secrets, accounts, local paths) with masked reports. Layered reference material and an evaluation harness included.",
+  "description": "Five commands for DeepSeek Harness: code review, behavior-preserving simplification, privacy scrubbing, a caption loop, and a PUA protocol. Checks run in the current session by default (add sub for an isolated agent) and write by default (add report for a plan only).",
   "license": "MIT",
+  "icon": "./icon.svg",
   "keywords": [
     "dsh",
+    "dsh-plugin",
+    "dsh-plugins",
     "deepseek-harness",
     "code-toolkit",
     "code-review",
     "simplify",
     "privacy",
-    "secret-scan"
+    "secret-scan",
+    "caption",
+    "pua",
+    "subagent"
   ],
   "exports": {
     ".": "./index.js",
@@ -28,11 +34,15 @@
     "locale",
     "docs",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "node evals/run.mjs",
-    "eval": "node evals/run.mjs --verbose"
+    "eval": "node evals/run.mjs --verbose",
+    "case": "node evals/case-setup.mjs",
+    "score": "node evals/score.mjs"
   },
   "engines": {
     "node": ">=22.19.0",
