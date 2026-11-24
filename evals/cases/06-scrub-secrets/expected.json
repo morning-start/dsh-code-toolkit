@@ -1,0 +1,33 @@
+{
+  "mode": "scrub",
+  "clean": false,
+  "scope": "repository",
+  "findings": [
+    {
+      "id": "committed-env-password",
+      "file": ".env",
+      "line": 2,
+      "lineTolerance": 2,
+      "priority": 0,
+      "description": "A committed .env carries a database password; anyone with the repository can read it, and it must be rotated."
+    },
+    {
+      "id": "personal-email-in-docs",
+      "file": "docs/setup.md",
+      "line": 4,
+      "lineTolerance": 1,
+      "priority": 1,
+      "description": "A personal address on an internal domain is published as the access contact."
+    },
+    {
+      "id": "local-path-with-username",
+      "file": ".vscode/settings.json",
+      "line": 3,
+      "lineTolerance": 1,
+      "priority": 2,
+      "description": "A committed editor setting pins C:\\Users\\<user>, exposing the OS username and breaking for other machines."
+    }
+  ],
+  "allowedExtras": 1,
+  "mustNotLeak": ["hunter2", "jane.doe", "hanes"]
+}

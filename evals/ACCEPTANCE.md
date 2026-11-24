@@ -29,6 +29,9 @@ one that finds 80% and invents nothing, because the author stops reading.
 | `02-clean-rename` | review | the discipline to report nothing |
 | `03-shared-retry-counter` | review | reasoning about the second call, not just the hunk |
 | `04-simplify-nesting` | simplify | the plan must argue behaviour preservation, not just shorten code |
+| `05-simplify-reject` | simplify | noticing that the obvious rewrite swallows `NaN` |
+| `06-scrub-secrets` | scrub | three real leaks among four decoys; the report must stay masked |
+| `07-scrub-clean` | scrub | env refs, placeholders and public metadata — report nothing |
 
 Each case is a `before/` tree, an optional `after/` tree (the change), a
 `README.md` explaining the trap, and `expected.json` with the labels.

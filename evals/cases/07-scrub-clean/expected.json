@@ -1,0 +1,7 @@
+{
+  "mode": "scrub",
+  "clean": true,
+  "scope": "repository",
+  "findings": [],
+  "allowedExtras": 0
+}

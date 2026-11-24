@@ -1,10 +1,11 @@
 # @morning-start/dsh-code-quality
 
-DeepSeek Harness 的代码质量插件：**审查**与**精炼**都由独立上下文的原生 spawn agent 执行，提示词按 skill 的方式分层组织，并附带可运行的评测。
+DeepSeek Harness 的代码质量插件：**审查**、**精炼**与**隐私清理**都由独立上下文的原生 spawn agent 执行，提示词按 skill 的方式分层组织，并附带可运行的评测。
 
 ```text
 /code-review     审查改动，出带优先级的报告（只读）
 /code-simplify   简化代码，功能逐位不变（默认 dry-run，--apply 才写）
+/code-scrub      清理隐私信息：密钥、密码、账号、本机路径（默认只报，报告脱敏）
 /code-status     查看状态或最近一次结果
 /code-cancel     取消运行中的任务
 ```
@@ -39,6 +40,13 @@ agents/simplify/
   references/verification.md          各语言可用的验证手段
   references/conventions.md           项目规范优先级
   examples/plan.md / apply.md         计划与结果的写法
+agents/scrub/
+  AGENT.md                 核心 persona：脱敏铁律、范围、分类、优先级、输出契约
+  references/patterns.md   密钥/账号/本机路径的检索族
+  references/false-positives.md  占位符、环境变量引用、公开元数据、测试夹具
+  references/redaction.md  各类文件的替换形态与验证
+  examples/report.md       一条脱敏后的合格发现
+  examples/clean.md        "看着可疑但干净"的仓库
 ```
 
 `AGENT.md` 是常驻部分（每个命令都注入），`references/` 与 `examples/` 是**按需加载**：子 agent 手上有读文件工具，persona 里写明"什么时候该读哪一份"。这样核心提示词保持短，深度内容随取随用，和 skill 的 progressive disclosure 是同一套机制——区别只在触发方式和运行方式（见下）。
@@ -75,7 +83,7 @@ node evals/case-setup.mjs --case 01-null-header --out tmp/eval/01
 node evals/score.mjs --case 01-null-header --report tmp/eval/01/with/report.txt
 ```
 
-用例一正一反成对：审查侧有"删掉默认参数而调用方还在"（要看调用点）、"纯改名"（要敢报零发现）、"计数器提到模块作用域"（要想到第二次调用）；简化侧有"四层嵌套"（该动手）和"看起来能合并成 `||` 但会吞掉 `NaN`"（该收手）。
+用例一正一反成对：审查侧有"删掉默认参数而调用方还在"（要看调用点）、"纯改名"（要敢报零发现）、"计数器提到模块作用域"（要想到第二次调用）；简化侧有"四层嵌套"（该动手）和"看起来能合并成 `||` 但会吞掉 `NaN`"（该收手）；清理侧有"提交了 `.env`、内部邮箱、本机路径"（该报）和"全是占位符与公开元数据"（要敢报零发现）。
 
 ## 加新能力
 

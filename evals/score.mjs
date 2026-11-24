@@ -73,15 +73,18 @@ function scoreReview() {
   const priorityOk = hits.filter((hit) => hit.found && (hit.priorityOff === null || hit.priorityOff <= 1)).length
 
   const cleanPass = expected.clean ? reported.length === 0 : true
+  // A scrub report that repeats the secret has only moved the leak.
+  const leaks = (expected.mustNotLeak ?? []).filter((needle) => raw.includes(needle))
   const pass =
     recall === 1 &&
     extra <= (expected.allowedExtras ?? 0) &&
     cleanPass &&
+    leaks.length === 0 &&
     (expected.clean ? true : priorityOk === expectedCount)
 
   return {
     case: caseName,
-    mode: 'review',
+    mode: expected.mode,
     pass,
     format: report.format,
     expected: expectedCount,
@@ -93,6 +96,7 @@ function scoreReview() {
     priorityOk,
     hits,
     cleanPass,
+    leaks: leaks.length,
   }
 }
 
@@ -113,14 +117,14 @@ if (asJson) {
   console.log(JSON.stringify(result, null, 2))
 } else {
   console.log(`case ${result.case} (${result.mode}) → ${result.pass ? 'PASS' : 'FAIL'}`)
-  if (result.mode === 'review') {
-    console.log(`  format=${result.format} recall=${result.recall.toFixed(2)} precision=${result.precision.toFixed(2)} extra=${result.extra} priorityOk=${result.priorityOk}/${result.expected}`)
+  if (Array.isArray(result.groups)) {
+    for (const group of result.groups) console.log(`  ${group.hit ? '✓' : '✗'} ${group.any.join(' | ')}`)
+    if (result.forbidden.length) console.log(`  ✗ forbidden: ${result.forbidden.join(', ')}`)
+  } else {
+    console.log(`  format=${result.format} recall=${result.recall.toFixed(2)} precision=${result.precision.toFixed(2)} extra=${result.extra} priorityOk=${result.priorityOk}/${result.expected}${result.leaks ? ` LEAKED=${result.leaks}` : ''}`)
     for (const hit of result.hits) {
       console.log(`  ${hit.found ? '✓' : '✗'} ${hit.id}${hit.found ? ` (P${hit.priority}, off by ${hit.priorityOff ?? 'n/a'})` : ''}`)
     }
-  } else {
-    for (const group of result.groups) console.log(`  ${group.hit ? '✓' : '✗'} ${group.any.join(' | ')}`)
-    if (result.forbidden.length) console.log(`  ✗ forbidden: ${result.forbidden.join(', ')}`)
   }
 }
 

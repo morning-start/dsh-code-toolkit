@@ -23,9 +23,11 @@ const MESSAGES = {
   zh: {
     'cmd.simplify': '简化代码：功能逐位不变，默认只出计划',
     'cmd.review': '审查代码改动：独立 agent 出带优先级的报告',
+    'cmd.scrub': '清理隐私信息：密钥、密码、账号、本机路径（报告默认脱敏）',
     'cmd.status': '查看代码质量任务状态或最近结果',
     'cmd.cancel': '取消当前代码质量任务',
     'hint.scope': '留空选择范围；或 --files a.js,b.js / --base main / --commit <sha> / --apply / 自定义说明',
+    'hint.scrub': '留空扫描整个仓库；或 --files a.js,.env / 自定义说明；加 --apply 才写回',
     'select.scope.title': '代码质量',
     'select.scope.question': '要处理哪部分代码？',
     'option.current': '本轮改动（工作区 + 已暂存）',
@@ -65,9 +67,11 @@ const MESSAGES = {
   en: {
     'cmd.simplify': 'Simplify code without changing behavior; plans by default',
     'cmd.review': 'Review a change with an independent agent and prioritized findings',
+    'cmd.scrub': 'Find and redact secrets, credentials, and personal data (masked by default)',
     'cmd.status': 'Show code-quality task status or the latest result',
     'cmd.cancel': 'Cancel the running code-quality task',
     'hint.scope': 'Leave empty to choose a scope; or --files a.js,b.js / --base main / --commit <sha> / --apply / custom instructions',
+    'hint.scrub': 'Leave empty to scan the repository; or --files a.js,.env / custom instructions; add --apply to rewrite',
     'select.scope.title': 'Code quality',
     'select.scope.question': 'Which code should be handled?',
     'option.current': 'Changes in this session',

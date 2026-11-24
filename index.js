@@ -23,7 +23,7 @@ function loadPersona(role) {
 }
 
 /** Assemble the concrete task handed to the isolated agent. */
-async function buildPrompt({ persona, scope, mode, cwd, locale, signal }) {
+async function buildPrompt({ persona, scope, mode, cwd, locale, signal, dryRunText }) {
   return [
     `Working directory: ${cwd}`,
     `Reference directory: ${persona.directory}`,
@@ -32,7 +32,7 @@ async function buildPrompt({ persona, scope, mode, cwd, locale, signal }) {
     '',
     `Mode: ${mode}.`,
     mode === 'dry-run'
-      ? 'Produce the plan only. Change no files.'
+      ? dryRunText
       : 'Apply the changes, then verify that behavior is unchanged. If verification fails, revert that change and report it.',
     '',
     outputLanguage(locale),
@@ -53,10 +53,14 @@ export function apply(ctx, config = {}) {
   if (config.simplifyModel !== undefined && !String(config.simplifyModel).trim()) {
     throw new Error(translate(fallbackLocale, 'error.model'))
   }
+  if (config.scrubModel !== undefined && !String(config.scrubModel).trim()) {
+    throw new Error(translate(fallbackLocale, 'error.model'))
+  }
 
   const journal = new Journal(config.reportDirectory ?? Journal.defaultDirectory())
   const simplifyPersona = loadPersona('simplify')
   const reviewPersona = loadPersona('review')
+  const scrubPersona = loadPersona('scrub')
 
   /** agentId -> { controller, label, startedAt } */
   const running = new Map()
@@ -96,6 +100,7 @@ export function apply(ctx, config = {}) {
         cwd,
         locale,
         signal: combined,
+        dryRunText: options.dryRunText ?? 'Report only. Change no files.',
       })
 
       await journal
@@ -155,6 +160,24 @@ export function apply(ctx, config = {}) {
         model: config.simplifyModel,
         forceDryRun: false,
         structured: false,
+        dryRunText: 'Produce the plan only. Change no files.',
+      })
+    },
+  })
+
+  ctx.commands.register({
+    name: 'code-scrub',
+    description: translate(localeNow(), 'cmd.scrub'),
+    input: { hint: translate(localeNow(), 'hint.scrub') },
+    handler({ agent, rawInput, signal }) {
+      return execute(agent, rawInput, signal, {
+        command: 'scrub',
+        persona: scrubPersona,
+        label: translate(localeNow(), 'cmd.scrub'),
+        model: config.scrubModel,
+        forceDryRun: false,
+        structured: true,
+        dryRunText: 'Report only. Change no files, and never reproduce a secret in the report.',
       })
     },
   })

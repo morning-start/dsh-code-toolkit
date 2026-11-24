@@ -353,8 +353,9 @@ const cases = readdirSync(caseRoot).filter((name) => statSync(join(caseRoot, nam
 
 test('there is at least one case per mode', () => {
   const modes = cases.map((name) => JSON.parse(read(`evals/cases/${name}/expected.json`)).mode)
-  assert(modes.includes('review'), 'a review case')
-  assert(modes.includes('simplify'), 'a simplify case')
+  for (const mode of ['review', 'simplify', 'scrub']) {
+    assert(modes.includes(mode), `no case with mode "${mode}"`)
+  }
 })
 
 test('every agent role has an eval case, and every case has a role', () => {
@@ -376,8 +377,8 @@ for (const name of cases) {
     assert(existsSync(join(dir, 'README.md')), 'README.md explains the case')
     assert(existsSync(join(dir, 'before')), 'before/ tree')
     const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'))
-    assert(['review', 'simplify'].includes(expected.mode), 'mode')
-    if (expected.mode === 'review') {
+    assert(['review', 'simplify', 'scrub'].includes(expected.mode), 'mode')
+    if (expected.mode !== 'simplify') {
       assert(Array.isArray(expected.findings), 'findings array')
       for (const finding of expected.findings) {
         assert(typeof finding.file === 'string', 'finding.file')
@@ -385,6 +386,10 @@ for (const name of cases) {
         assert(Number.isInteger(finding.priority), 'finding.priority')
       }
       assert(typeof expected.clean === 'boolean', 'clean flag')
+      if (expected.mustNotLeak !== undefined) {
+        assert(Array.isArray(expected.mustNotLeak), 'mustNotLeak is an array')
+        assert(expected.mustNotLeak.every((item) => typeof item === 'string'), 'mustNotLeak entries are strings')
+      }
     } else {
       assert(Array.isArray(expected.requireGroups) && expected.requireGroups.length, 'requireGroups')
     }

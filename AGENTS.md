@@ -4,7 +4,7 @@
 
 ## 这个项目是什么
 
-DeepSeek Harness 插件，提供两个命令：`/code-review`（独立 agent 审查，出带优先级的报告）和 `/code-simplify`（独立 agent 精炼，默认 dry-run）。两个命令都靠**独立上下文的原生 spawn agent** 执行，persona 按 skill 的方式分层组织，并配有一套可运行的评测。
+DeepSeek Harness 插件，提供三个命令：`/code-review`（独立 agent 审查，出带优先级的报告）、`/code-simplify`（独立 agent 精炼，默认 dry-run）和 `/code-scrub`（找密钥、账号、本机路径，报告默认脱敏，`--apply` 才改写）。都靠**独立上下文的原生 spawn agent** 执行，persona 按 skill 的方式分层组织，并配有一套可运行的评测。
 
 ## 目录契约
 
@@ -138,7 +138,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（41 项，不需要模型）
+npm test                                   # 确定性测试（43 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt

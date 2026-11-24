@@ -1,16 +1,18 @@
 {
   "name": "@morning-start/dsh-code-quality",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Code quality for DeepSeek Harness: independent-agent code review and behavior-preserving simplification, with explicit scope selection, layered reference material, and an evaluation harness.",
+  "description": "Code quality for DeepSeek Harness: independent-agent code review, behavior-preserving simplification, and privacy scrubbing (secrets, accounts, local paths) with masked reports. Layered reference material and an evaluation harness included.",
   "license": "MIT",
   "keywords": [
     "dsh",
     "deepseek-harness",
     "code-quality",
     "code-review",
-    "simplify"
+    "simplify",
+    "privacy",
+    "secret-scan"
   ],
   "exports": {
     ".": "./index.js",

@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Code Quality",
-    "description": "Independent-agent code review and behavior-preserving simplification. Reviews pass an eight-gate filter before they reach you; simplification plans by default and only writes with --apply. Prompts are organised as a layered skill-style tree, with a deterministic test suite and a model evaluation loop.",
+    "description": "Independent-agent code review, behavior-preserving simplification, and privacy scrubbing. Reviews pass an eight-gate filter; simplification plans by default; scrubbing reports masked findings and only rewrites with --apply. Prompts are organised as a layered skill-style tree, with a deterministic test suite and a model evaluation loop.",
     "detail": "docs/DETAIL.md"
   }
 }

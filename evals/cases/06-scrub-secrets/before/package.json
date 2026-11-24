@@ -1,0 +1,7 @@
+{
+  "name": "acme-widgets",
+  "version": "1.4.0",
+  "author": "Jane Doe <jane@example.com>",
+  "repository": "github.com/acme/widgets",
+  "license": "MIT"
+}

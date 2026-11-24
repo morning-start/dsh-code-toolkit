@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — 2026-11-24
+
+- Added `/code-scrub`: finds credentials, account identifiers, and local paths,
+  and reports them masked — a report that repeats the secret has only moved the
+  leak. `--apply` redacts with the replacement shape each file type needs, then
+  verifies.
+- The scrubber's hard part is the false positive: `process.env.API_KEY`,
+  `<your-key>`, public author metadata, and `sk-test-not-real` are all decoys in
+  case 07, which expects an empty report.
+- 43 deterministic checks, seven fixture cases, and `evals/results/iteration-2.md`.
+
 ## 0.2.0 — 2026-11-24
 
 - Personas are layered like a skill: `agents/<role>/AGENT.md` plus
