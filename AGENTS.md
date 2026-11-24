@@ -16,7 +16,7 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带�
 | `agents/<role>/AGENT.md` | 常驻 persona，注入子 agent 的 system prompt | 子 agent |
 | `agents/<role>/references/` | 深度材料，子 agent 按需读 | 子 agent |
 | `agents/<role>/examples/` | 合格/不合格的样例 | 子 agent |
-| `evals/` | 确定性测试、评测用例、打分器、验收流程、结果记录 | 维护者、CI |
+| `evals/` | 确定性测试、评测用例、打分器、验收流程、结果记录 | 维护者、CI（**进 git，不进 npm 包**） |
 | `docs/DETAIL.md` | 面向用户的完整说明 | 用户 |
 | `locale/` | 插件元数据（标题、描述、detail 路径） | 宿主插件面板 |
 | `tmp/` | 一次性产物，已 gitignore | 无 |
