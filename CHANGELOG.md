@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.1 — 2026-11-24
+
+- Fixed `cannot get property "userQuestions" without inject`: the prompt helper
+  read `ctx.userQuestions` directly, which Cordis rejects unless the service is
+  declared in `inject`. The service is optional (headless hosts have no UI), so
+  every access now goes through `ctx.get`.
+- The eval harness now awaits the async tests it had been firing unawaited, so a
+  late failure can no longer print "0 failed" and then exit 1. 61 checks, not 58.
+
 ## 0.8.0 — 2026-11-24
 
 - Reverted the detached execution from 0.5.1. Without `input`, picking a command

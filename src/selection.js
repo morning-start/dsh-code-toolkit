@@ -91,7 +91,12 @@ export function parseArgs(rawInput) {
 }
 
 async function ask(ctx, agent, question, signal, t) {
-  const result = await ctx.userQuestions.ask({ agent, signal, questions: [question] })
+  // `ctx.userQuestions` throws unless the plugin declares it in `inject`; the
+  // service is optional (headless hosts have no UI), so every access goes
+  // through `ctx.get`.
+  const questions = ctx.get('userQuestions')
+  if (questions === undefined) throw new Error(t('error.noScope'))
+  const result = await questions.ask({ agent, signal, questions: [question] })
   const answer = result.answers.find((item) => item.id === question.id)
   if (!answer) throw new Error(t('error.noScope'))
   const value = (answer.custom ?? '').trim() || answer.selected?.[0] || ''

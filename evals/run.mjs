@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
-import { scopeInstruction, scopeLabel, parseArgs, mergeBase } from '../src/selection.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase, confirmApply } from '../src/selection.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
 
@@ -477,6 +477,32 @@ test('spawn commands keep their input claim so the menu inserts instead of runni
   }
 })
 
+await testAsync('question prompts go through ctx.get, never ctx.userQuestions', async () => {
+  // Cordis throws on `ctx.userQuestions` unless the plugin injects it, and the
+  // service is optional. A property getter that throws reproduces the real
+  // failure: "cannot get property userQuestions without inject".
+  const answers = { answers: [{ id: 'code-toolkit-apply', selected: ['Report only'] }] }
+  const ctx = {
+    get: (name) => (name === 'userQuestions' ? { ask: async () => answers } : undefined),
+  }
+  Object.defineProperty(ctx, 'userQuestions', {
+    get() {
+      throw new Error('cannot get property "userQuestions" without inject')
+    },
+  })
+  const strings = {
+    'apply.title': 'Rewrite mode',
+    'apply.question': 'Report only or rewrite?',
+    'apply.plan': 'Report only',
+    'apply.plan.desc': 'Change no files',
+    'apply.write': 'Rewrite',
+    'apply.write.desc': 'Verify after writing',
+    'error.noScope': 'no scope',
+  }
+  const t = (key) => strings[key] ?? key
+  assertEqual(await confirmApply(ctx, {}, undefined, t), false, 'the plan-only answer is not apply')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
@@ -543,7 +569,7 @@ test('caption: dispatch is limited to slices that cannot collide', () => {
   }
 })
 
-testAsync('caption: task and protocol are steered into the session', async () => {
+await testAsync('caption: task and protocol are steered into the session', async () => {
   const definition = captionDefinition()
   const steered = []
   const agent = {
@@ -563,7 +589,7 @@ testAsync('caption: task and protocol are steered into the session', async () =>
   assert(text.includes('caption'), 'names the ledger directory')
 })
 
-testAsync('caption: an empty task is refused before anything is steered', async () => {
+await testAsync('caption: an empty task is refused before anything is steered', async () => {
   const definition = captionDefinition()
   const steered = []
   const agent = { id: 'a1', session: { header: { cwd: 'C:\\work\\demo' } }, steer: (m) => steered.push(m) }
@@ -574,7 +600,7 @@ testAsync('caption: an empty task is refused before anything is steered', async 
   assertEqual(steered.length, 0, 'nothing is steered')
 })
 
-testAsync('caption: a host without steer fails loudly', async () => {
+await testAsync('caption: a host without steer fails loudly', async () => {
   const definition = captionDefinition()
   const agent = { id: 'a1', session: { header: { cwd: 'C:\\work\\demo' } } }
 
