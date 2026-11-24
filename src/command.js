@@ -1,0 +1,235 @@
+import { confirmApply, scopeInstruction, scopeLabel, selectScope, splitSub } from './selection.js'
+import { failureMessage, reportMessage, userMessage } from './delivery.js'
+import { outputLanguage } from './i18n.js'
+
+/**
+ * One command, one shell.
+ *
+ * Every command in this plugin talks to the session the same way: settle the
+ * handler at once, then either queue a task for the current agent or run an
+ * isolated one and deliver its report. What differs per command is only the
+ * spec — read-only or writable, scope or inject, structured output or plain
+ * text. Keeping that in one class is what makes the commands behave alike.
+ */
+export class SessionCommand {
+  /**
+   * @param {object} spec - the command's declarative shape.
+   * @param {object} host - shared services owned by `apply()`.
+   */
+  constructor(spec, host) {
+    this.spec = spec
+    this.host = host
+  }
+
+  /** Register the command against the host command plane. */
+  register(ctx) {
+    const { spec, host } = this
+    const t = (key) => host.translate(host.localeNow(), key)
+    const definition = {
+      name: spec.name,
+      description: t(spec.descriptionKey),
+      handler: (invocation) => this.handle(invocation),
+    }
+    if (spec.hintKey) definition.input = { hint: t(spec.hintKey) }
+    ctx.commands.register(definition)
+  }
+
+  /** One entry point for every kind: local, inject, task. */
+  handle({ agent, rawInput, signal }) {
+    const { host, spec } = this
+    const locale = host.localeNow()
+    const t = (key) => host.translate(locale, key)
+
+    if (spec.kind === 'local') return spec.run({ agent, rawInput, t, host })
+    if (spec.kind === 'inject') return this.inject(agent, rawInput, locale, t)
+    return this.task(agent, rawInput, signal, locale, t)
+  }
+
+  /** Put text into the session: caption's protocol, pua's flavor. */
+  async inject(agent, rawInput, locale, t) {
+    const { spec, host } = this
+    if (spec.validate) {
+      const failure = spec.validate(rawInput, t)
+      if (failure) return { kind: 'error', text: failure }
+    }
+    if (spec.early) {
+      const result = spec.early(rawInput, t)
+      if (result) return result
+    }
+    if (typeof agent?.steer !== 'function') return { kind: 'error', text: t('error.noSteer') }
+
+    await agent.steer({
+      content: [{ type: 'text', text: spec.buildText({ rawInput, agent, locale, host }) }],
+      source: { kind: 'user' },
+    })
+    return { kind: 'success', text: spec.receipt(rawInput, t) }
+  }
+
+  /** Scope-based task: inline by default, isolated with `sub`. */
+  task(agent, rawInput, signal, locale, t) {
+    const { sub, rest } = splitSub(rawInput)
+    if (!agent.session?.header?.cwd) return { kind: 'error', text: t('error.noCwd') }
+    if (typeof agent?.followup !== 'function') return { kind: 'error', text: t('error.noFollowup') }
+    return sub
+      ? this.startIsolated(agent, rest, signal, locale, t)
+      : this.startInline(agent, rest, signal, locale, t)
+  }
+
+  /** Queue the task for the current agent and settle immediately. */
+  startInline(agent, rawInput, signal, locale, t) {
+    const { host } = this
+    const controller = new AbortController()
+    const combined = AbortSignal.any([signal, controller.signal])
+    const sessionId = agent.session?.id ?? agent.id
+    const language = outputLanguage(locale)
+    const chinese = String(locale).startsWith('zh')
+
+    void this.prepare(agent, rawInput, combined, locale, t, sessionId)
+      .then(
+        (task) => {
+          if (combined.aborted) return
+          host.deliver(agent, userMessage(task))
+        },
+        (error) => {
+          if (combined.aborted) return
+          const detail = error instanceof Error ? error.message : String(error)
+          host.deliver(agent, failureMessage(detail, language, chinese))
+        },
+      )
+
+    return { kind: 'success', text: t('cmd.queued') }
+  }
+
+  /** Run the isolated agent and deliver its report as a message. */
+  startIsolated(agent, rawInput, signal, locale, t) {
+    const { host, spec } = this
+    const key = agent.id
+    if (host.running.has(key)) return { kind: 'error', text: t('error.busy') }
+
+    const controller = new AbortController()
+    const combined = AbortSignal.any([signal, controller.signal])
+    host.running.set(key, { controller, label: host.translate(locale, spec.descriptionKey), startedAt: Date.now() })
+    const sessionId = agent.session?.id ?? agent.id
+    const language = outputLanguage(locale)
+    const chinese = String(locale).startsWith('zh')
+
+    void this.execute(agent, rawInput, combined, locale, t, sessionId)
+      .then(
+        (text) => {
+          if (combined.aborted) return
+          host.deliver(agent, reportMessage(text, language, chinese))
+        },
+        (error) => {
+          if (combined.aborted) return
+          const detail = error instanceof Error ? error.message : String(error)
+          host.deliver(agent, failureMessage(detail, language, chinese))
+        },
+      )
+      .finally(() => host.running.delete(key))
+
+    return { kind: 'success', text: t('cmd.queued') }
+  }
+
+  /** Resolve the scope and assemble the task text (shared by both paths). */
+  async prepare(agent, rawInput, combined, locale, t, sessionId) {
+    const { host, spec } = this
+    const cwd = agent.session?.header?.cwd
+    if (!cwd) throw new Error(t('error.noCwd'))
+
+    const { scope, apply: fromArgs } = await selectScope(host.ctx, agent, rawInput, combined, t)
+    if (!scope) throw new Error(t('error.noScope'))
+
+    const wantsApply = fromArgs || (spec.askApply === true && await confirmApply(host.ctx, agent, combined, t))
+    const mode = spec.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined })
+
+    await host.journal
+      .write(sessionId, {
+        state: 'submitted',
+        command: spec.command,
+        scope: scopeLabel(scope),
+        mode,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    return prompt
+  }
+
+  /** The isolated run: same preparation, then the child, then the report text. */
+  async execute(agent, rawInput, combined, locale, t, sessionId) {
+    const { host, spec } = this
+    const cwd = agent.session?.header?.cwd
+    if (!cwd) throw new Error(t('error.noCwd'))
+
+    const { scope, apply: fromArgs } = await selectScope(host.ctx, agent, rawInput, combined, t)
+    if (!scope) throw new Error(t('error.noScope'))
+
+    const wantsApply = fromArgs || (spec.askApply === true && await confirmApply(host.ctx, agent, combined, t))
+    const mode = spec.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined })
+
+    await host.journal
+      .write(sessionId, {
+        state: 'running',
+        command: spec.command,
+        scope: scopeLabel(scope),
+        mode,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    const raw = await host.runIsolatedAgent(agent, {
+      persona: `${spec.persona.text}\n\n${outputLanguage(locale)}`,
+      prompt,
+      label: host.translate(locale, spec.descriptionKey),
+      signal: combined,
+      model: spec.model,
+      t,
+    })
+
+    const body = spec.structured ? host.renderReport(host.parseReport(raw), t) : raw
+    const text = [`> ${scopeLabel(scope)} · ${mode}`, '', body].join('\n')
+
+    await host.journal
+      .write(sessionId, {
+        state: 'finished',
+        command: spec.command,
+        scope: scopeLabel(scope),
+        mode,
+        result: text,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    return text
+  }
+
+  /** The task text handed to either the current agent or the child. */
+  async buildPrompt({ scope, mode, cwd, locale, signal }) {
+    const { spec } = this
+    const chinese = String(locale).startsWith('zh')
+    const modeLine = mode === 'dry-run'
+      ? (chinese ? '只出计划，不要改任何文件。' : (spec.dryRunText ?? 'Report only. Change no files.'))
+      : (chinese
+        ? '按计划修改，并验证行为不变；验证不通过就回退那一处改动并如实报告。'
+        : 'Apply the changes, then verify that behavior is unchanged. If verification fails, revert that change and report it.')
+    const delivery = chinese
+      ? '你的最终回复会原样发给用户，作为这次任务的结果：写清改了什么、跑了哪条命令、输出是什么、哪些没有验证。'
+      : 'Your final reply is delivered to the user as the result: say what changed, which command ran, what it printed, and what stayed unverified.'
+
+    return [
+      chinese ? `工作目录：${cwd}` : `Working directory: ${cwd}`,
+      chinese ? `参考目录：${spec.persona.directory}` : `Reference directory: ${spec.persona.directory}`,
+      '',
+      await scopeInstruction(scope, { cwd, signal }),
+      '',
+      chinese ? `模式：${mode}。` : `Mode: ${mode}.`,
+      modeLine,
+      '',
+      delivery,
+      '',
+      outputLanguage(locale),
+    ].join('\n')
+  }
+}

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.0 — 2026-11-24
+
+- Extracted the session-interaction ability into one `SessionCommand` class
+  (`src/command.js`). Every command — review, simplify, scrub, caption, pua,
+  status, cancel — is now a declaration registered through it: `kind` is `task`
+  (scope + inline or isolated delivery), `inject` (text into the session), or
+  `local` (journal/status). Immediate settlement, scope selection, the apply
+  question, failure delivery and journal states live in one place instead of
+  once per handler.
+- A test asserts `index.js` no longer registers commands directly, so the shell
+  stays the only entry.
+- 71 deterministic checks.
+
 ## 0.11.0 — 2026-11-24
 
 - `/code-review`, `/code-simplify` and `/code-scrub` now run **in the current

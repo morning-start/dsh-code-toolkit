@@ -46,6 +46,20 @@
 
 失败也要发消息：范围选不出来、子 agent 报错、被取消之前就失败，都会以一条「未完成」消息说明原因，否则用户只看到输入框清了、什么也没有。
 
+## 一个外壳
+
+七条命令共用同一个类 `SessionCommand`（`src/command.js`）。每条命令在 `index.js` 里只是一份声明：`kind`（`task` / `inject` / `local`）、是否只读、是否问「直接改写」、报告是否结构化、用哪个 persona、菜单文案的 i18n key。
+
+类负责的是所有命令共同的部分：
+
+- 立刻返回回执，任务在后台继续；
+- 范围选择（`userQuestions`）与 `--apply` 询问；
+- `sub` 分流：默认投递给当前会话，`sub` 才起隔离子 agent；
+- 失败时发一条说明，不静默；
+- journal 的 `submitted` / `running` / `finished` 三种状态。
+
+新增一条命令时只写声明，不要绕开这个类直接注册——测试会检查 `index.js` 里没有 `ctx.commands.register`。
+
 ## 提示词的组织
 
 persona 不是一个文件，而是 `agents/<role>/` 下的一棵树：

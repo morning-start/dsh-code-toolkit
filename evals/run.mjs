@@ -539,6 +539,17 @@ test('sub: routes the task to an isolated agent without swallowing the rest', ()
   assertEqual(anywhere.rest, '--files a.js', 'the flag is stripped')
 })
 
+test('every command goes through the one session shell', () => {
+  const index = read('index.js')
+  assert(!index.includes('ctx.commands.register'), 'index.js must not register commands directly')
+  const shell = read('src/command.js')
+  assert(shell.includes('export class SessionCommand'), 'the shell is one class')
+  assert(shell.includes('ctx.commands.register'), 'the shell owns registration')
+  for (const kind of ["'inject'", "'local'", 'startInline', 'startIsolated']) {
+    assert(shell.includes(kind), `the shell is missing ${kind}`)
+  }
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},

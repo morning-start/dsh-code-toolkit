@@ -10,7 +10,8 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带�
 
 | 路径 | 放什么 | 谁读 |
 | --- | --- | --- |
-| `index.js` | 命令注册、范围选择编排、报告落盘 | 宿主 |
+| `index.js` | 命令声明（每条一份 spec）、配置校验、persona 装载 | 宿主 |
+| `src/command.js` | `SessionCommand`：所有命令共用的会话交互外壳（注册、范围、投递、journal） | `index.js`、测试 |
 | `src/` | 运行时、报告解析与渲染、i18n、journal、scope 解析 | `index.js`、测试 |
 | `agents/<role>/AGENT.md` | 常驻 persona，注入子 agent 的 system prompt | 子 agent |
 | `agents/<role>/references/` | 深度材料，子 agent 按需读 | 子 agent |
@@ -37,6 +38,8 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带�
 **7. 新增 i18n key 必须同时进 `zh` 和 `en`。** 测试会扫描 `index.js` 里用到的 key。
 
 **8. 新增目录要进 `package.json` 的 `files`。** 否则打包后运行时报找不到文件。测试会检查。
+
+**9. 所有命令都通过 `SessionCommand` 注册。** `index.js` 里只写声明，不直接 `ctx.commands.register`；测试会检查。命令之间的一致性靠这个外壳保证，绕开它就等于又写了一遍。
 
 ## 新能力的流程
 
@@ -115,7 +118,7 @@ evals/cases/<NN>-<slug>/
 ## 新增一个角色
 
 1. 建 `agents/<role>/AGENT.md` + 至少两份 references + 一份 examples。
-2. 在 `index.js` 里 `loadPersona('<role>')`，接一个命令，`structured` 按输出形态决定。
+2. 在 `index.js` 里 `loadPersona('<role>')`，然后声明一条 `SessionCommand`（`kind: 'task' | 'inject' | 'local'`），不要自己注册命令。
 3. 在 `evals/cases/` 加至少一个 `mode` 等于该 role 的用例——测试会检查每个 role 都有用例。
 4. 更新 `README.md` 的命令表与结构树、`docs/DETAIL.md`、`locale/*.json` 的描述。
 5. `package.json` 不需要动（`agents` 已经在 `files` 里）。
@@ -138,7 +141,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（70 项，不需要模型）
+npm test                                   # 确定性测试（71 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt

@@ -25,6 +25,20 @@ DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**
 
 回车后 handler 立刻返回，输入框当场清空；随后任务被投进当前会话（加 `sub` 则交给隔离子 agent），结果就在会话里。既保留了“选中只插入”，也不会出现输入框停在原地看起来没发出去。
 
+## 一个外壳，所有命令
+
+命令的行为不是各写一遍：`/code-review`、`/code-simplify`、`/code-scrub`、`/code-caption`、`/pua`、`/code-status`、`/code-cancel` 全部由同一个 `SessionCommand` 类实现（[src/command.js](src/command.js)）。每条命令只提供一份声明：
+
+| 声明 | 作用 |
+| --- | --- |
+| `kind` | `task` 走范围 + 任务投递（可加 `sub`）；`inject` 往会话里放一段文本；`local` 只读状态或取消 |
+| `forceDryRun` / `askApply` | 只读、默认只出计划、还是问一次再写 |
+| `structured` | 报告是否按结构化格式解析后再渲染 |
+| `persona` | 从 `agents/<role>/` 读到的协议与参考目录 |
+| `descriptionKey` / `hintKey` | 菜单文案，跟随宿主语言 |
+
+统一的好处是行为一致：都立刻返回、都先选范围、失败都发一条说明、都写 journal；差异只留在声明里，不再散落在每个 handler 中。
+
 ## 提示词不是两个文件
 
 `agents/` 按 skill 的三层结构组织，而不是把全部规则塞进一个 prompt：
