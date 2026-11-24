@@ -1,0 +1,10 @@
+{
+  "mode": "simplify",
+  "dryRun": true,
+  "requireGroups": [
+    ["src/config.js", "config.js"],
+    ["nest", "flatten", "guard", "early return", "嵌套", "展平"],
+    ["unchanged", "identical", "same behaviour", "same behavior", "行为不变", "功能不变"]
+  ],
+  "forbid": ["I changed", "I edited", "已修改", "已写入"]
+}

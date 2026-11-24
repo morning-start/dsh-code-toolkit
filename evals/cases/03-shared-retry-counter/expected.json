@@ -1,0 +1,16 @@
+{
+  "mode": "review",
+  "clean": false,
+  "scope": "uncommitted",
+  "findings": [
+    {
+      "id": "module-level-retry-counter",
+      "file": "src/socket.js",
+      "line": 4,
+      "lineTolerance": 3,
+      "priority": 1,
+      "description": "`attempt` was hoisted to module scope, so it is shared across calls: after one call exhausts the retries the next call's loop body never runs and returns false without connecting."
+    }
+  ],
+  "allowedExtras": 1
+}

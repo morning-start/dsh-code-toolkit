@@ -1,0 +1,45 @@
+{
+  "name": "@morning-start/dsh-code-quality",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Code quality for DeepSeek Harness: independent-agent code review and behavior-preserving simplification, with explicit scope selection, layered reference material, and an evaluation harness.",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "code-quality",
+    "code-review",
+    "simplify"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "src",
+    "agents",
+    "cordis.patch.yml",
+    "locale",
+    "docs",
+    "icon.svg",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node evals/run.mjs",
+    "eval": "node evals/run.mjs --verbose"
+  },
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0-0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

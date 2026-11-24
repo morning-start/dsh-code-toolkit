@@ -1,0 +1,401 @@
+#!/usr/bin/env node
+/**
+ * Deterministic eval suite.
+ *
+ * Everything here is a property of the plugin's own files and code: prompt-tree
+ * integrity, the report parser, the renderer, prompt assembly, package
+ * metadata. No model is called, so it runs in a second and can gate a commit.
+ *
+ * The model's quality is measured by `evals/ACCEPTANCE.md` instead — see
+ * `score.mjs` for the scoring half.
+ */
+
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { parseReport, renderReport } from '../src/report.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase } from '../src/selection.js'
+import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
+
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
+const verbose = process.argv.includes('--verbose')
+
+let passed = 0
+const failures = []
+
+function test(name, fn) {
+  try {
+    fn()
+    passed += 1
+    if (verbose) console.log(`ok   ${name}`)
+  } catch (error) {
+    failures.push({ name, message: error instanceof Error ? error.message : String(error) })
+    console.log(`FAIL ${name}\n     ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+async function testAsync(name, fn) {
+  try {
+    await fn()
+    passed += 1
+    if (verbose) console.log(`ok   ${name}`)
+  } catch (error) {
+    failures.push({ name, message: error instanceof Error ? error.message : String(error) })
+    console.log(`FAIL ${name}\n     ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message)
+}
+
+function assertEqual(actual, expected, label) {
+  if (actual !== expected) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
+}
+
+const read = (relative) => readFileSync(join(ROOT, relative), 'utf8')
+const exists = (relative) => existsSync(join(ROOT, relative))
+const t = (key) => translate('en', key)
+
+// ---------------------------------------------------------------------------
+// A. package metadata
+// ---------------------------------------------------------------------------
+
+test('package.json is valid and declares the bundle patch', () => {
+  const pkg = JSON.parse(read('package.json'))
+  assertEqual(pkg.type, 'module', 'type')
+  assertEqual(pkg.dsh?.bundle?.patch, './cordis.patch.yml', 'dsh.bundle.patch')
+  assert(Boolean(pkg.engines?.dsh), 'engines.dsh is required for a bundle')
+  assert(pkg.files.includes('agents'), 'files must ship agents/')
+  assert(!pkg.files.includes('prompts'), 'the flat prompts/ directory is gone')
+})
+
+test('every declared file and export exists', () => {
+  const pkg = JSON.parse(read('package.json'))
+  for (const entry of pkg.files) {
+    if (entry.includes('*')) continue
+    assert(exists(entry), `files entry missing: ${entry}`)
+  }
+  for (const target of Object.values(pkg.exports)) {
+    if (typeof target !== 'string' || target.includes('*')) continue
+    assert(exists(target), `export target missing: ${target}`)
+  }
+  for (const locale of ['zh', 'en']) {
+    assert(exists(`locale/${locale}.json`), `locale/${locale}.json missing`)
+  }
+})
+
+test('bundle patch inserts this package', () => {
+  const patch = read('cordis.patch.yml')
+  assert(/^-\s+insert:/m.test(patch), 'patch needs an insert block')
+  assert(patch.includes('@morning-start/dsh-code-quality'), 'patch names the package')
+})
+
+test('locale metadata points at an existing detail document', () => {
+  for (const locale of ['zh', 'en']) {
+    const data = JSON.parse(read(`locale/${locale}.json`))
+    assert(Boolean(data.meta?.title), `${locale}: title`)
+    assert(Boolean(data.meta?.description), `${locale}: description`)
+    assert(exists(data.meta.detail), `${locale}: detail ${data.meta.detail}`)
+  }
+})
+
+test('icon is self-contained svg', () => {
+  const icon = read('icon.svg')
+  assert(icon.includes('<svg') && icon.includes('</svg>'), 'icon must be svg')
+  assert(/viewBox="[^"]+"/.test(icon), 'icon needs a viewBox')
+  assert(!icon.includes('<script'), 'icon must not script')
+  assert(!/https?:\/\//.test(icon.replace(/xmlns="[^"]*"/g, '')), 'icon must not fetch remote assets')
+})
+
+// ---------------------------------------------------------------------------
+// B. prompt tree
+// ---------------------------------------------------------------------------
+
+const ROLES = {
+  review: ['Resolve the scope', 'The eight gates', 'Priorities', 'Output', 'Reference files'],
+  simplify: ['Three iron rules', 'Six operations', 'Anti-patterns', 'Verification', 'Reference files'],
+}
+
+for (const [role, sections] of Object.entries(ROLES)) {
+  test(`${role}: AGENT.md exists and stays small`, () => {
+    const text = read(`agents/${role}/AGENT.md`)
+    assert(text.length > 800, 'persona is suspiciously short')
+    assert(text.length < 12000, `persona is ${text.length} chars; move detail into references/`)
+    for (const section of sections) {
+      assert(text.includes(section), `missing section: ${section}`)
+    }
+  })
+
+  test(`${role}: every referenced file exists`, () => {
+    const text = read(`agents/${role}/AGENT.md`)
+    const refs = [...text.matchAll(/`((?:references|examples)\/[^`]+\.md)`/g)].map((match) => match[1])
+    assert(refs.length > 0, 'the persona must point at reference files')
+    for (const ref of new Set(refs)) {
+      assert(exists(`agents/${role}/${ref}`), `referenced but missing: ${ref}`)
+    }
+  })
+
+  test(`${role}: every shipped reference is reachable from the persona`, () => {
+    const text = read(`agents/${role}/AGENT.md`)
+    for (const directory of ['references', 'examples']) {
+      const path = join(ROOT, 'agents', role, directory)
+      if (!existsSync(path)) continue
+      for (const file of readdirSync(path).filter((name) => name.endsWith('.md'))) {
+        assert(
+          text.includes(`${directory}/${file}`),
+          `${directory}/${file} exists but no instruction says when to read it`,
+        )
+      }
+    }
+  })
+
+  test(`${role}: references have a title and are substantial`, () => {
+    const path = join(ROOT, 'agents', role, 'references')
+    for (const file of readdirSync(path).filter((name) => name.endsWith('.md'))) {
+      const text = readFileSync(join(path, file), 'utf8')
+      assert(/^#\s+\S/m.test(text), `${file}: needs a level-1 heading`)
+      assert(text.length > 400, `${file}: too thin (${text.length} chars)`)
+    }
+  })
+}
+
+test('sourced material names its source', () => {
+  for (const file of ['agents/review/references/rubric.md', 'agents/simplify/references/anti-patterns.md']) {
+    const text = read(file)
+    assert(/Source:/.test(text), `${file} must state where its material comes from`)
+    assert(/Apache-2\.0|claude-plugins-official|Codex/.test(text), `${file} must name the upstream`)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// C. report parser
+// ---------------------------------------------------------------------------
+
+const bareReport = JSON.stringify({
+  findings: [
+    {
+      title: '[P1] Guard the header',
+      body: '`header.cwd` throws when the caller omits the header.',
+      confidence_score: 0.8,
+      priority: 1,
+      code_location: { absolute_file_path: 'E:\\app\\src\\server.js', line_range: { start: 3, end: 4 } },
+    },
+  ],
+  overall_correctness: 'patch is incorrect',
+  overall_explanation: 'The change drops a default parameter.',
+  overall_confidence_score: 0.8,
+})
+
+test('parser: bare JSON report', () => {
+  const report = parseReport(bareReport)
+  assertEqual(report.format, 'structured', 'format')
+  assertEqual(report.findings.length, 1, 'findings')
+  assertEqual(report.findings[0].priority, 1, 'priority')
+  assertEqual(report.findings[0].start, 3, 'start')
+  assertEqual(report.findings[0].end, 4, 'end')
+  assertEqual(report.correctness, 'patch is incorrect', 'correctness')
+})
+
+test('parser: JSON wrapped in a fence with prose around it', () => {
+  const raw = `Here is my review.\n\n\`\`\`json\n${bareReport}\n\`\`\`\n\nLet me know.`
+  const report = parseReport(raw)
+  assertEqual(report.format, 'structured', 'format')
+  assertEqual(report.findings.length, 1, 'findings')
+})
+
+test('parser: braces inside prose do not hide the report', () => {
+  const raw = `I looked at src/{a,b} and the config {draft} object.\n${bareReport}`
+  const report = parseReport(raw)
+  assertEqual(report.format, 'structured', 'format')
+  assertEqual(report.findings.length, 1, 'findings')
+})
+
+test('parser: tolerates P2 and a string line range', () => {
+  const raw = JSON.stringify({
+    findings: [{ title: 'Drift', body: 'Two copies.', priority: 'P2', file: 'src/a.js', line: '12-14' }],
+    overall_explanation: 'Minor.',
+  })
+  const report = parseReport(raw)
+  assertEqual(report.findings[0].priority, 2, 'priority from "P2"')
+  assertEqual(report.findings[0].start, 12, 'start from string range')
+  assertEqual(report.findings[0].end, 14, 'end from string range')
+  assertEqual(report.findings[0].path, 'src/a.js', 'path alias')
+})
+
+test('parser: a finding without a location is kept but renders without a link', () => {
+  const raw = JSON.stringify({
+    findings: [{ title: 'Vague', body: 'Something feels off.' }],
+    overall_explanation: 'Not much to say.',
+  })
+  const report = parseReport(raw)
+  assertEqual(report.format, 'structured', 'format')
+  assertEqual(report.findings.length, 1, 'a finding with no location is still a finding')
+  assertEqual(report.findings[0].path, '', 'path')
+  const text = renderReport(report, t)
+  assert(!text.includes(']('), 'renders without a link')
+  assert(text.includes('Vague'), 'title survives')
+})
+
+test('parser: picks the last valid object when several appear', () => {
+  const first = JSON.stringify({ findings: [], overall_explanation: 'draft', overall_correctness: 'x' })
+  const second = JSON.stringify({ findings: [], overall_explanation: 'final', overall_correctness: 'y' })
+  const report = parseReport(`${first}\n${second}`)
+  assertEqual(report.summary, 'final', 'summary')
+})
+
+test('parser: malformed input falls back to text', () => {
+  const raw = '# Review\n\nLooks fine to me.'
+  const report = parseReport(raw)
+  assertEqual(report.format, 'text', 'format')
+  assertEqual(report.summary, raw, 'summary')
+})
+
+test('renderer: adds a priority tag and a line-anchored file link', () => {
+  const text = renderReport(parseReport(bareReport), t)
+  assert(text.includes('[P1] Guard the header'), 'priority tag')
+  assert(/\]\(E:%5Capp%5Csrc%5Cserver\.js#L3-L4\)/.test(text) || text.includes('#L3-L4'), 'line fragment')
+  assert(text.includes('server.js:3–4'), 'range label')
+})
+
+test('renderer: does not double-tag a title that already has one', () => {
+  const text = renderReport(parseReport(bareReport), t)
+  assert(!text.includes('[P1] [P1]'), 'double tag')
+})
+
+test('renderer: text fallback is passed through unchanged', () => {
+  const raw = '## Findings\n\nNothing.'
+  assertEqual(renderReport(parseReport(raw), t), raw, 'passthrough')
+})
+
+// ---------------------------------------------------------------------------
+// D. prompt assembly
+// ---------------------------------------------------------------------------
+
+await testAsync('scope: working tree', async () => {
+  const text = await scopeInstruction({ mode: 'worktree' })
+  assert(text.includes('git status --short'), 'mentions git status')
+  assert(text.includes('git diff HEAD'), 'mentions git diff')
+})
+
+await testAsync('scope: commit carries the ref and title', async () => {
+  const text = await scopeInstruction({ mode: 'commit', ref: 'abc123', title: 'fix: guard' })
+  assert(text.includes('abc123'), 'ref')
+  assert(text.includes('fix: guard'), 'title')
+})
+
+await testAsync('scope: files lists every path', async () => {
+  const text = await scopeInstruction({ mode: 'files', paths: ['src/a.js', 'src/b.js'] })
+  assert(text.includes('`src/a.js`') && text.includes('`src/b.js`'), 'paths')
+})
+
+await testAsync('scope: custom instructions are passed verbatim', async () => {
+  const text = await scopeInstruction({ mode: 'instructions', text: 'only the auth module' })
+  assert(text.includes('only the auth module'), 'instructions')
+})
+
+await testAsync('scope: base without a repository still gives a usable instruction', async () => {
+  const text = await scopeInstruction({ mode: 'base', ref: 'main' })
+  assert(text.includes('merge-base'), 'fallback mentions merge-base')
+  assert(text.includes('main'), 'names the base ref')
+})
+
+test('scope labels stay short', () => {
+  assertEqual(scopeLabel({ mode: 'commit', ref: '0123456789abcdef' }), 'commit 0123456789', 'commit label')
+  assertEqual(scopeLabel({ mode: 'worktree' }), 'working tree vs HEAD', 'worktree label')
+  const long = scopeLabel({ mode: 'instructions', text: 'x'.repeat(200) })
+  assert(long.length <= 61, `label is ${long.length} chars`)
+})
+
+test('argument parsing keeps --apply out of the scope text', () => {
+  const parsed = parseArgs('--files src/a.js,src/b.js --apply')
+  assertEqual(parsed.apply, true, 'apply')
+  assertEqual(parsed.scope.mode, 'files', 'mode')
+  assertEqual(parsed.scope.paths.length, 2, 'paths')
+  const custom = parseArgs('look at the auth flow --apply')
+  assertEqual(custom.scope.mode, 'instructions', 'custom mode')
+  assertEqual(custom.scope.text, 'look at the auth flow', 'custom text')
+})
+
+// ---------------------------------------------------------------------------
+// E. locale
+// ---------------------------------------------------------------------------
+
+test('locale: eight official languages resolve, unknown falls back to English', () => {
+  assertEqual(resolveLocale('zh-CN'), 'zh', 'zh-CN')
+  assertEqual(resolveLocale('ja'), 'ja', 'ja')
+  assertEqual(resolveLocale('pt-BR'), 'pt', 'pt-BR')
+  assertEqual(resolveLocale('it-IT'), 'en', 'unknown tag')
+  assertEqual(resolveLocale(''), 'zh', 'empty')
+})
+
+test('locale: every key used by index.js is translated', () => {
+  const index = read('index.js')
+  const keys = [...index.matchAll(/t\('([a-zA-Z.]+)'\)/g)].map((match) => match[1])
+  for (const key of new Set(keys)) {
+    assert(translate('zh', key) !== key, `zh is missing ${key}`)
+    assert(translate('en', key) !== key, `en is missing ${key}`)
+  }
+})
+
+test('locale: output language names the target', () => {
+  assert(outputLanguage('de').includes('German'), 'de')
+  assert(outputLanguage('zh').includes('Chinese'), 'zh')
+})
+
+// ---------------------------------------------------------------------------
+// F. eval cases
+// ---------------------------------------------------------------------------
+
+const caseRoot = join(ROOT, 'evals', 'cases')
+const cases = readdirSync(caseRoot).filter((name) => statSync(join(caseRoot, name)).isDirectory())
+
+test('there is at least one case per mode', () => {
+  const modes = cases.map((name) => JSON.parse(read(`evals/cases/${name}/expected.json`)).mode)
+  assert(modes.includes('review'), 'a review case')
+  assert(modes.includes('simplify'), 'a simplify case')
+})
+
+test('every agent role has an eval case, and every case has a role', () => {
+  const roles = readdirSync(join(ROOT, 'agents')).filter((name) =>
+    statSync(join(ROOT, 'agents', name)).isDirectory(),
+  )
+  const modes = new Set(cases.map((name) => JSON.parse(read(`evals/cases/${name}/expected.json`)).mode))
+  for (const role of roles) {
+    assert(modes.has(role), `agents/${role} ships without any eval case`)
+  }
+  for (const mode of modes) {
+    assert(roles.includes(mode), `eval case uses mode "${mode}" but there is no agents/${mode}`)
+  }
+})
+
+for (const name of cases) {
+  test(`case ${name}: well formed`, () => {
+    const dir = join(caseRoot, name)
+    assert(existsSync(join(dir, 'README.md')), 'README.md explains the case')
+    assert(existsSync(join(dir, 'before')), 'before/ tree')
+    const expected = JSON.parse(readFileSync(join(dir, 'expected.json'), 'utf8'))
+    assert(['review', 'simplify'].includes(expected.mode), 'mode')
+    if (expected.mode === 'review') {
+      assert(Array.isArray(expected.findings), 'findings array')
+      for (const finding of expected.findings) {
+        assert(typeof finding.file === 'string', 'finding.file')
+        assert(Number.isInteger(finding.line), 'finding.line')
+        assert(Number.isInteger(finding.priority), 'finding.priority')
+      }
+      assert(typeof expected.clean === 'boolean', 'clean flag')
+    } else {
+      assert(Array.isArray(expected.requireGroups) && expected.requireGroups.length, 'requireGroups')
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+
+console.log(`\n${passed} passed, ${failures.length} failed`)
+if (failures.length) {
+  console.log('\nFailures:')
+  for (const failure of failures) console.log(`- ${failure.name}: ${failure.message}`)
+  process.exit(1)
+}

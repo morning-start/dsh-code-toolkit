@@ -1,0 +1,10 @@
+{
+  "mode": "simplify",
+  "dryRun": true,
+  "requireGroups": [
+    ["src/normalize.js", "normalize.js"],
+    ["NaN", "nan"],
+    ["else", "nest", "flatten", "guard", "early return"]
+  ],
+  "forbid": []
+}

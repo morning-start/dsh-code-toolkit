@@ -1,0 +1,5 @@
+# Insert the code-quality Host plugin into the current profile.
+- insert:
+    - id: morning-start-code-quality
+      name: '@morning-start/dsh-code-quality'
+      config: {}

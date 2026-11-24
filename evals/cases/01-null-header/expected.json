@@ -1,0 +1,16 @@
+{
+  "mode": "review",
+  "clean": false,
+  "scope": "uncommitted",
+  "findings": [
+    {
+      "id": "dropped-default-parameter",
+      "file": "src/server.js",
+      "line": 3,
+      "lineTolerance": 2,
+      "priority": 1,
+      "description": "The change removes the `= {}` default on `header` and dereferences `header.cwd`; the existing caller `startSession(store)` in src/cli.js now throws."
+    }
+  ],
+  "allowedExtras": 1
+}

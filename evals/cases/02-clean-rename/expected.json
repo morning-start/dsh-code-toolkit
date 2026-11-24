@@ -1,0 +1,7 @@
+{
+  "mode": "review",
+  "clean": true,
+  "scope": "uncommitted",
+  "findings": [],
+  "allowedExtras": 0
+}
