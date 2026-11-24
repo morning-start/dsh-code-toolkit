@@ -454,6 +454,30 @@ test('apply() registers every command against a stub host', () => {
   }
 })
 
+test('long-running commands run detached so the composer clears on Enter', () => {
+  const registered = []
+  apply({
+    effect: () => () => {},
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: (definition) => registered.push(definition) },
+  }, {})
+
+  // A claimed command (one that declares `input`) keeps the draft read-only
+  // until its handler settles. These three await a whole subagent run, so they
+  // must execute detached; otherwise the box looks unsent for the entire run.
+  for (const name of ['code-review', 'code-simplify', 'code-scrub']) {
+    const definition = registered.find((item) => item.name === name)
+    assert(definition !== undefined, `${name} is registered`)
+    assert(
+      definition.input === undefined,
+      `${name} must not declare input — a claimed command freezes the composer until the handler settles`,
+    )
+  }
+  const caption = registered.find((item) => item.name === 'code-caption')
+  assert(caption.input !== undefined, 'code-caption settles immediately, so it keeps its input hint')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},

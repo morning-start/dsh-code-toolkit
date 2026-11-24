@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { outputLanguage, readHostLocale, resolveLocale, translate } from './src/i18n.js'
 import { Journal } from './src/journal.js'
 import { parseReport, renderReport } from './src/report.js'
-import { scopeInstruction, scopeLabel, selectScope } from './src/selection.js'
+import { scopeInstruction, scopeLabel, selectScope, confirmApply } from './src/selection.js'
 import { runIsolatedAgent } from './src/runtime.js'
 
 export const name = 'morning-start-code-toolkit'
@@ -90,10 +90,11 @@ export function apply(ctx, config = {}) {
 
     const sessionId = agent.session?.id ?? agent.id
     try {
-      const { scope, apply: applyMode } = await selectScope(ctx, agent, rawInput, combined, t)
+      const { scope, apply: fromArgs } = await selectScope(ctx, agent, rawInput, combined, t)
       if (!scope) return { kind: 'error', text: t('error.noScope') }
 
-      const mode = options.forceDryRun || !applyMode ? 'dry-run' : 'apply'
+      const wantsApply = fromArgs || (options.askApply === true && await confirmApply(ctx, agent, combined, t))
+      const mode = options.forceDryRun || !wantsApply ? 'dry-run' : 'apply'
       const prompt = await buildPrompt({
         persona: options.persona,
         scope,
@@ -149,10 +150,14 @@ export function apply(ctx, config = {}) {
     }
   }
 
+  // These three run detached on purpose. A command that declares `input` is
+  // submitted as a claim, and the composer keeps the draft read-only until the
+  // handler settles — for a review that is the whole run, so the box looks
+  // unsent. Without `input` the client consumes the token immediately, the
+  // composer clears on Enter, and the result arrives as a command flow node.
   ctx.commands.register({
     name: 'code-simplify',
     description: translate(localeNow(), 'cmd.simplify'),
-    input: { hint: translate(localeNow(), 'hint.scope') },
     handler({ agent, rawInput, signal }) {
       return execute(agent, rawInput, signal, {
         command: 'simplify',
@@ -160,6 +165,7 @@ export function apply(ctx, config = {}) {
         label: translate(localeNow(), 'cmd.simplify'),
         model: config.simplifyModel,
         forceDryRun: false,
+        askApply: true,
         structured: false,
         dryRunText: 'Produce the plan only. Change no files.',
       })
@@ -169,7 +175,6 @@ export function apply(ctx, config = {}) {
   ctx.commands.register({
     name: 'code-scrub',
     description: translate(localeNow(), 'cmd.scrub'),
-    input: { hint: translate(localeNow(), 'hint.scrub') },
     handler({ agent, rawInput, signal }) {
       return execute(agent, rawInput, signal, {
         command: 'scrub',
@@ -177,6 +182,7 @@ export function apply(ctx, config = {}) {
         label: translate(localeNow(), 'cmd.scrub'),
         model: config.scrubModel,
         forceDryRun: false,
+        askApply: true,
         structured: true,
         dryRunText: 'Report only. Change no files, and never reproduce a secret in the report.',
       })
@@ -217,7 +223,6 @@ export function apply(ctx, config = {}) {
   ctx.commands.register({
     name: 'code-review',
     description: translate(localeNow(), 'cmd.review'),
-    input: { hint: translate(localeNow(), 'hint.scope') },
     handler({ agent, rawInput, signal }) {
       return execute(agent, rawInput, signal, {
         command: 'review',

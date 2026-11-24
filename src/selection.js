@@ -100,6 +100,27 @@ async function ask(ctx, agent, question, signal, t) {
 }
 
 /**
+ * Ask whether this run should rewrite files or only report.
+ *
+ * The command line no longer carries `--apply`: the composer clears only when
+ * the command settles, so a long-running handler must not be claimed, and a
+ * claimed command is the only kind that receives arguments.
+ */
+export async function confirmApply(ctx, agent, signal, t) {
+  if (!ctx.get('userQuestions')) return false
+  const choice = await ask(ctx, agent, {
+    id: 'code-toolkit-apply',
+    header: t('apply.title'),
+    question: t('apply.question'),
+    options: [
+      { label: t('apply.plan'), description: t('apply.plan.desc') },
+      { label: t('apply.write'), description: t('apply.write.desc') },
+    ],
+  }, signal, t)
+  return choice === t('apply.write')
+}
+
+/**
  * Resolve a scope: an explicit line wins, otherwise ask the user.
  * Returns null when the user gave nothing usable.
  */

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.5.1 — 2026-11-24
+
+- Fixed the composer keeping the text after Enter. `/code-review`,
+  `/code-simplify` and `/code-scrub` declared `input`, which makes the client
+  treat the line as a claimed command: the draft stays read-only until the
+  handler settles — and these handlers await a whole subagent run. They now run
+  detached: the token is consumed on Enter, the box clears, and the result
+  arrives as a command flow node.
+- Consequence: the three commands take no arguments any more. Scope is the
+  existing picker; "report only or rewrite" is a second question. A regression
+  test now fails if one of them declares `input` again.
+- `/code-caption` keeps its `input` hint: its handler steers and returns
+  immediately.
+
 ## 0.5.0 — 2026-11-24
 
 - Added `/code-caption`: it installs an explicit working loop into the current

@@ -80,9 +80,9 @@ const sources = [...new Set(
 if (existsSync(afterDir)) {
   copyTree(afterDir, target)
   console.log(`case ${caseName} → ${target} (uncommitted change on top of base)`)
-  console.log(`  review with: --files ${sources.join(',')}`)
+  console.log(`  sources: ${sources.join(',')}`)
 } else {
   console.log(`case ${caseName} → ${target} (clean tree; no diff — scope it yourself)`)
-  console.log(`  try: --files ${sources.join(',')}`)
+  console.log(`  sources: ${sources.join(',')}`)
 }
 console.log(`  diff: git -C "${target}" diff`)

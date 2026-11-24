@@ -4,21 +4,16 @@ DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**
 
 ```text
 /code-review     审查改动，出带优先级的报告（只读）
-/code-simplify   简化代码，功能逐位不变（默认 dry-run，--apply 才写）
+/code-simplify   简化代码，功能逐位不变（默认只出计划，选“直接改写”才写）
 /code-scrub      清理隐私信息：密钥、密码、账号、本机路径（默认只报，报告脱敏）
 /code-caption    把难任务装进 caption 循环：一步一验，过程落成台账
 /code-status     查看状态或最近一次结果
 /code-cancel     取消运行中的任务
 ```
 
-选范围可以交互选（本轮改动 / 基准分支 / 某次提交 / 自定义），也可以一行写清：
+三条检查命令不带参数：回车后输入框立刻清空，任务在后台跑，结果以一条命令流水节点出现在会话里；范围和“只出报告还是直接改写”都用选择框问。
 
-```text
-/code-review --base main
-/code-review --commit 1a2b3c4
-/code-simplify --files src/app.js,src/util.js
-/code-simplify --apply
-```
+这不是随便定的。声明了 `input` 的命令会被客户端当作**认领提交**，输入框保持只读、直到 handler 返回；而一次审查要跑几十秒到几分钟，看上去就像没发出去。不带 `input` 的命令走 detached 路径，令牌当场被消费，输入框立即清空，结果由命令生命周期渲染。
 
 ## 提示词不是两个文件
 
@@ -119,7 +114,7 @@ plugin_manager { action: "install_bundle", target: "<本目录绝对路径>" }
 ## 限制
 
 - 需要独立上下文的原生 `spawn` provider，缺失时报错而非降级（`/code-caption` 不需要 spawn，但需要宿主支持向会话注入输入，即 `agent.steer`）。
-- `/code-simplify` 默认不改文件；`--apply` 后子 agent 必须验证，不过则回退。
+- `/code-simplify` 默认不改文件；选「直接改写」后子 agent 必须验证，不过则回退。
 - 子 agent 禁止调用委派类工具，不会二次扇出。
 - `/code-caption` 注入的是一条用户消息，会留在会话历史里；台账写在目标仓库的 `docs/caption/`，跨机器不共享。
 - 报告落盘在 `$DSH_HOME/code-toolkit/`，重开会话后 `/code-status` 仍可读；跨机器不共享。
