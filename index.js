@@ -25,16 +25,26 @@ function loadPersona(role) {
 
 /** Assemble the concrete task handed to the isolated agent. */
 async function buildPrompt({ persona, scope, mode, cwd, locale, signal, dryRunText }) {
+  const chinese = String(locale).startsWith('zh')
+  const modeLine = mode === 'dry-run'
+    ? (chinese ? '只出计划，不要改任何文件。' : dryRunText)
+    : (chinese
+      ? '按计划修改，并验证行为不变；验证不通过就回退那一处改动并如实报告。'
+      : 'Apply the changes, then verify that behavior is unchanged. If verification fails, revert that change and report it.')
+  const delivery = chinese
+    ? '你的最终回复会原样发给用户，作为这次任务的结果：写清改了什么、跑了哪条命令、输出是什么、哪些没有验证。'
+    : 'Your final reply is delivered to the user as the result: say what changed, which command ran, what it printed, and what stayed unverified.'
+
   return [
-    `Working directory: ${cwd}`,
-    `Reference directory: ${persona.directory}`,
+    chinese ? `工作目录：${cwd}` : `Working directory: ${cwd}`,
+    chinese ? `参考目录：${persona.directory}` : `Reference directory: ${persona.directory}`,
     '',
     await scopeInstruction(scope, { cwd, signal }),
     '',
-    `Mode: ${mode}.`,
-    mode === 'dry-run'
-      ? dryRunText
-      : 'Apply the changes, then verify that behavior is unchanged. If verification fails, revert that change and report it.',
+    chinese ? `模式：${mode}。` : `Mode: ${mode}.`,
+    modeLine,
+    '',
+    delivery,
     '',
     outputLanguage(locale),
   ].join('\n')
@@ -168,17 +178,18 @@ export function apply(ctx, config = {}) {
     running.set(key, { controller, label: options.label, startedAt: Date.now() })
     const sessionId = agent.session?.id ?? agent.id
     const language = outputLanguage(locale)
+    const chinese = String(locale).startsWith('zh')
 
     void execute(agent, rawInput, combined, options, { sessionId, locale, t })
       .then(
         (text) => {
           if (combined.aborted) return
-          deliver(agent, reportMessage(text, language))
+          deliver(agent, reportMessage(text, language, chinese))
         },
         (error) => {
           if (combined.aborted) return
           const detail = error instanceof Error ? error.message : String(error)
-          deliver(agent, failureMessage(detail, language))
+          deliver(agent, failureMessage(detail, language, chinese))
         },
       )
       .finally(() => running.delete(key))

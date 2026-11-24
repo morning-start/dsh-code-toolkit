@@ -24,29 +24,43 @@ export function userMessage(text) {
 }
 
 /** The report is delivered as a task the model must relay, not re-do. */
-export function reportMessage(report, language) {
-  return userMessage(
-    [
+export function reportMessage(report, language, chinese = false) {
+  const lines = chinese
+    ? [
+      '下面是这次代码工具箱任务的完成报告。请原样转述给用户：不要增删或改写结论，也不要重新发起审查。',
+      '',
+      report,
+      '',
+      language,
+    ]
+    : [
       'Here is the completed code-toolkit report. Present it to the user verbatim:',
       'do not add, remove, or rewrite findings, and do not start another review.',
       '',
       report,
       '',
       language,
-    ].join('\n'),
-  )
+    ]
+  return userMessage(lines.join('\n'))
 }
 
 /** A failed run still has to say why, or the user is left with a silent box. */
-export function failureMessage(detail, language) {
-  return userMessage(
-    [
+export function failureMessage(detail, language, chinese = false) {
+  const lines = chinese
+    ? [
+      '这次代码工具箱任务没有完成。请把下面的原因原样转述给用户，不要自行重试：',
+      '',
+      detail,
+      '',
+      language,
+    ]
+    : [
       'The code-toolkit run did not complete. Present this status to the user verbatim',
       'and do not retry it on your own:',
       '',
       detail,
       '',
       language,
-    ].join('\n'),
-  )
+    ]
+  return userMessage(lines.join('\n'))
 }

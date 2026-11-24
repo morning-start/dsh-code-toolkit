@@ -519,6 +519,9 @@ await testAsync('delivery: the report arrives as a user message the model must r
 
   const plain = userMessage('x')
   assert(plain.content[0].text === 'x', 'plain text passes through')
+
+  const zh = reportMessage('报告正文', 'Write in Chinese.', true)
+  assert(zh.content[0].text.includes('原样转述'), 'the wrapper follows the host language')
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {
