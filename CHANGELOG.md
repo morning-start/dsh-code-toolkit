@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.27.0 — 2026-11-25
+
+- Caption can now create experts **during** the run, not only at the start. A
+  new "Creating experts mid-run" section puts the decision inside the loop:
+  write the brief in the ledger, pick the lane, dispatch and keep working (or
+  wait, for a build expert), merge against the brief, run the whole gate, record
+  the entry.
+- `references/experts.md` gained the triggers (unfamiliar subsystem, a rule you
+  cannot verify from code, width, a risky change), the anti-triggers, and the
+  lifecycle table that names the quiet failure at each stage.
+- 86 deterministic checks.
+
 ## 0.26.1 — 2026-11-25
 
 - `/code-review` has its own input hint: it names the default scope (uncommitted,

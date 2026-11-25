@@ -78,6 +78,46 @@ The difference is not length. The weak version leaves the child to invent the
 bar, the inputs, the threshold and the shape; the strong one leaves it only the
 work.
 
+## When to create one mid-run
+
+An expert is worth creating the moment a step needs knowledge the loop does not
+have. The signals:
+
+- **An unfamiliar subsystem.** You can read it, but reading it well would take
+  longer than briefing someone who only reads it.
+- **A domain rule you cannot verify from the code.** A wire format, a schema, a
+  regulation, a third-party contract. The expert's job is to state the rule and
+  where it comes from, not to guess.
+- **Width.** Five modules need the same question answered; one expert per module
+  finishes in the time one expert takes to do all five.
+- **A second pair of eyes on a risky change** — but only for the change, not as
+  a vote on your reasoning.
+
+The signals that it is **not** worth it:
+
+- The next step is one file you have already read.
+- You would spend more time writing the brief than doing the work.
+- You are using the expert to avoid deciding something you already know.
+- The slice has no boundary you can state in paths.
+
+## The lifecycle of an expert
+
+```text
+brief (in the ledger) → dispatch → work in parallel → merge against the brief
+                      → run the whole gate → record the entry
+```
+
+Each arrow is a place where the run can fail quietly:
+
+| Stage | The quiet failure | The check that catches it |
+|---|---|---|
+| brief | vague bar, no exclusion list | can you name what it must *not* report? |
+| dispatch | two experts on one path | every path in the brief is disjoint from every other |
+| work | the expert edits outside its scope | `git status` before you trust the result |
+| merge | you accept a claim without its evidence | every finding cites a file:line and a command |
+| gate | per-expert green, merged red | you run the whole gate yourself |
+| record | the same bad brief reused | the ledger entry names the expert and the outcome |
+
 ## Sizing
 
 - **One expert per question**, and a question small enough that its answer fits

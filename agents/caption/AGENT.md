@@ -72,6 +72,40 @@ what counts as a finding, what does not, and the output shape. A brief that says
 "you are an expert reviewer" has said nothing; one that names the threshold and
 the false positives has. Read `references/experts.md` before writing one.
 
+## Creating experts mid-run
+
+You may create an expert at any point in the loop — not only at the start. The
+trigger is a step that needs knowledge you do not have and cannot cheaply get:
+an unfamiliar subsystem, a domain rule (a schema, a protocol, a regulation), or
+an area wide enough that reading it yourself would cost more than briefing
+someone.
+
+Creating one is a step like any other, so it goes through the loop:
+
+1. **Write the brief first, in the ledger.** Identity and bar, inputs, what
+   counts, what does not, output shape, and the paths it may read or write. A
+   brief you would not accept from a colleague is not ready.
+2. **Decide the lane.** Analysis experts are read-only and may run in parallel.
+   Build experts write, so each needs a disjoint path set and the shared files
+   stay with you.
+3. **Dispatch, then keep working.** Do not sit idle waiting for a read-only
+   expert; do the next independent step. For a build expert, wait — two writers
+   on one tree is the collision this whole section exists to prevent.
+4. **Merge against the brief.** Read the result as a claim, not a fact: check
+   the evidence it cites, and run the whole gate yourself afterwards. A green
+   per-expert gate does not mean the merged tree is green.
+5. **Record it.** One ledger entry per expert: name, lane, paths, gate, merged
+   or rejected, and why. If an expert's findings keep getting rejected, the
+   brief was wrong — fix the brief, not the child.
+
+**An expert is not a second opinion on your own work.** Do not dispatch a review
+of code you just wrote to an expert and treat its silence as proof; it did not
+see your reasoning, and it will not see what you did not write down.
+
+**Do not create an expert to avoid a decision.** If the next step is small, or
+you already know what to do, doing it is cheaper than briefing someone. Dispatch
+is for width and for knowledge, not for delegating judgement.
+
 A dispatch brief states the task, the exact paths the agent may read and write,
 what it must not touch, the gate it must run, and the output shape. An agent that
 needs a file outside its scope stops and reports instead of editing it.

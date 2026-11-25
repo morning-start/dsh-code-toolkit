@@ -798,6 +798,20 @@ test('review: apply mode reports the fixes it made, dry-run does not', () => {
   assert(!renderReport(dryRun, (key) => key).includes('report.fixed'), 'and no section either')
 })
 
+test('caption: experts can be created mid-run, under the same lane rules', () => {
+  const protocol = read('agents/caption/AGENT.md')
+  assert(protocol.includes('## Creating experts mid-run'), 'the protocol has the mid-run section')
+  for (const marker of ['Write the brief first, in the ledger', 'Decide the lane', 'Dispatch, then keep working', 'Merge against the brief', 'Record it']) {
+    assert(protocol.includes(marker), `the mid-run section is missing: ${marker}`)
+  }
+  assert(protocol.includes('Do not create an expert to avoid a decision'), 'the section says when not to')
+
+  const experts = read('agents/caption/references/experts.md')
+  assert(experts.includes('## When to create one mid-run'), 'the reference says when')
+  assert(experts.includes('## The lifecycle of an expert'), 'the reference has the lifecycle')
+  assert(experts.includes('The quiet failure'), 'and names the quiet failures')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
