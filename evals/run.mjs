@@ -702,6 +702,29 @@ await testAsync('simplify: a stale plan is not carried over', async () => {
   rmSync(store, { recursive: true, force: true })
 })
 
+await testAsync('receipt: the message says where the task went and what it will do', async () => {
+  const store = join(ROOT, 'tmp', 'receipt-journal')
+  rmSync(store, { recursive: true, force: true })
+  const agent = {
+    id: 'agent-receipt',
+    session: { id: 'session-receipt', header: { cwd: 'C:\\work\\demo' } },
+    followup: () => {},
+  }
+  const definition = simplifyDefinition({ reportDirectory: store, runTimeoutMinutes: 0 })
+
+  const inline = await definition.handler({ agent, rawInput: '', signal: new AbortController().signal })
+  assert(inline.text.includes('当前会话'), 'an inline run says it went to the session')
+  assert(!inline.text.includes('子 agent'), 'and does not claim a subagent')
+
+  const plan = await definition.handler({ agent, rawInput: 'report', signal: new AbortController().signal })
+  assert(plan.text.includes('方案'), 'a report run says a plan comes first')
+  assert(plan.text.includes('不改任何文件'), 'and that nothing will change')
+
+  const sub = await definition.handler({ agent, rawInput: 'sub', signal: new AbortController().signal })
+  assert(sub.text.includes('独立子 agent'), 'a sub run says it went to an isolated agent')
+  rmSync(store, { recursive: true, force: true })
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},

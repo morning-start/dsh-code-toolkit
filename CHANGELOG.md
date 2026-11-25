@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.23.0 — 2026-11-25
+
+- The receipt now says what actually happened instead of one generic line. Four
+  cases: handed to this session, handed to an isolated agent, a plan first (no
+  files change), or a plan first from an isolated agent. "已提交" told the person
+  nothing about where the task went or whether files would change.
+- Menu descriptions match the defaults again: simplify and scrub say they write,
+  review says it is read-only.
+- 82 deterministic checks.
+
 ## 0.22.0 — 2026-11-25
 
 - Every command now delivers the same way. `/code-caption` and `/pua` used to

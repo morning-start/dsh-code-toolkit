@@ -3,6 +3,16 @@ import { failureMessage, reportMessage, userMessage, SOURCE_KIND } from './deliv
 import { outputLanguage } from './i18n.js'
 
 /**
+ * The receipt names where the task went and what it will do: the current
+ * session or an isolated agent, a plan or an edit. A bare "submitted" leaves the
+ * person guessing which of the four happened.
+ */
+function queuedKey(report, isolated) {
+  if (report) return isolated ? 'cmd.queuedPlanSub' : 'cmd.queuedPlan'
+  return isolated ? 'cmd.queuedSub' : 'cmd.queued'
+}
+
+/**
  * One command, one shell.
  *
  * Every command in this plugin talks to the session the same way: settle the
@@ -118,7 +128,7 @@ export class SessionCommand {
         },
       )
 
-    return { kind: 'success', text: t('cmd.queued') }
+    return { kind: 'success', text: t(queuedKey(report, false)) }
   }
 
   /** Run the isolated agent and deliver its report as a message. */
@@ -158,7 +168,7 @@ export class SessionCommand {
       )
       .finally(() => host.running.delete(key))
 
-    return { kind: 'success', text: t('cmd.queued') }
+    return { kind: 'success', text: t(queuedKey(report, true)) }
   }
 
   /**

@@ -1,6 +1,6 @@
 {
   "name": "@morning-start/dsh-code-toolkit",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "type": "module",
   "description": "Five commands for DeepSeek Harness: code review, behavior-preserving simplification, privacy scrubbing, a caption loop, and a PUA protocol. Checks run in the current session by default (add sub for an isolated agent) and write by default (add report for a plan only).",
