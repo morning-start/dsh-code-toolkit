@@ -32,6 +32,15 @@ function runTimeoutMs(minutes) {
   return value * 60_000
 }
 
+/** How long an approved plan stays usable; past it the tree has moved on. */
+function planMaxAgeMs(minutes) {
+  const value = Number(minutes ?? 60)
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(translate('en', 'error.planMaxAge'))
+  }
+  return value * 60_000
+}
+
 export function apply(ctx, config = {}) {
   const fallbackLocale = resolveLocale(config.locale)
   /** An explicit config.locale wins; otherwise the host's preference decides. */
@@ -82,6 +91,7 @@ export function apply(ctx, config = {}) {
     journal,
     running,
     runTimeoutMs: runTimeoutMs(config.runTimeoutMinutes),
+    planMaxAgeMs: planMaxAgeMs(config.planMaxAgeMinutes),
     localeNow,
     ledgerDirectory,
     translate: (locale, key) => translate(locale, key),
@@ -106,6 +116,7 @@ export function apply(ctx, config = {}) {
       persona: personas.simplify,
       model: config.simplifyModel,
       forceDryRun: false,
+      followsPlan: true,
       structured: false,
       dryRunText: 'Produce the plan only. Change no files.',
     }, host),
@@ -117,6 +128,7 @@ export function apply(ctx, config = {}) {
       persona: personas.scrub,
       model: config.scrubModel,
       forceDryRun: false,
+      followsPlan: true,
       structured: true,
       dryRunText: 'Report only. Change no files, and never reproduce a secret in the report.',
     }, host),

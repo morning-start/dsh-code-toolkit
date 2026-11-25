@@ -20,6 +20,7 @@ import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectS
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
+import { Journal } from '../src/journal.js'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const verbose = process.argv.includes('--verbose')
@@ -643,6 +644,64 @@ test('caption: the two flows are named, gated on approval, and referenced', () =
   assert(flows.includes('Delete before you add'), 'the doc flow has its own rules')
 })
 
+await testAsync('simplify: an apply run carries the approved plan instead of re-deriving it', async () => {
+  const store = join(ROOT, 'tmp', 'plan-journal')
+  rmSync(store, { recursive: true, force: true })
+  const agent = {
+    id: 'agent-plan',
+    session: { id: 'session-plan', header: { cwd: 'C:\\work\\demo' } },
+    followup: (message) => { delivered.push(message) },
+  }
+  const delivered = []
+  const definition = simplifyDefinition({ reportDirectory: store, runTimeoutMinutes: 0.0001 })
+
+  // A finished dry-run report for the same scope, written the way the shell writes it.
+  const journal = new Journal(store)
+  await journal.write('session-plan', {
+    state: 'finished',
+    command: 'simplify',
+    scope: 'whole project',
+    mode: 'dry-run',
+    result: '## 计划\n\n1. 合并两处重复的解析逻辑',
+    at: new Date().toISOString(),
+  })
+
+  const result = await definition.handler({ agent, rawInput: '', signal: new AbortController().signal })
+  assertEqual(result.kind, 'success', 'kind')
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  const text = delivered[0]?.content?.[0]?.text ?? ''
+  assert(text.includes('合并两处重复的解析逻辑'), 'the approved plan travels with the task')
+  assert(text.includes('已由人看过并批准'), 'and says it was approved')
+  rmSync(store, { recursive: true, force: true })
+})
+
+await testAsync('simplify: a stale plan is not carried over', async () => {
+  const store = join(ROOT, 'tmp', 'plan-stale')
+  rmSync(store, { recursive: true, force: true })
+  const delivered = []
+  const agent = {
+    id: 'agent-stale',
+    session: { id: 'session-stale', header: { cwd: 'C:\\work\\demo' } },
+    followup: (message) => { delivered.push(message) },
+  }
+  const definition = simplifyDefinition({ reportDirectory: store, runTimeoutMinutes: 0.0001, planMaxAgeMinutes: 0 })
+  const journal = new Journal(store)
+  await journal.write('session-stale', {
+    state: 'finished',
+    command: 'simplify',
+    scope: 'whole project',
+    mode: 'dry-run',
+    result: '## 计划\n\n1. 旧计划',
+    at: new Date(Date.now() - 60_000).toISOString(),
+  })
+
+  await definition.handler({ agent, rawInput: '', signal: new AbortController().signal })
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  const text = delivered[0]?.content?.[0]?.text ?? ''
+  assert(!text.includes('旧计划'), 'an expired plan is dropped')
+  rmSync(store, { recursive: true, force: true })
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
@@ -679,6 +738,17 @@ function reviewDefinition(config = {}) {
     commands: { register: (definition) => registered.push(definition) },
   }, config)
   return registered.find((definition) => definition.name === 'code-review')
+}
+
+function simplifyDefinition(config = {}) {
+  const registered = []
+  apply({
+    effect: () => () => {},
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: (definition) => registered.push(definition) },
+  }, config)
+  return registered.find((definition) => definition.name === 'code-simplify')
 }
 
 test('simplify: no gate, no apply, and the plan ranks by value', () => {  const text = read('agents/simplify/AGENT.md')

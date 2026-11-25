@@ -12,6 +12,8 @@
 #                    (a relative path resolves against the project)
 #   runTimeoutMinutes  release a hung `sub` run's slot after this many minutes
 #                    default: 30; 0 disables the limit
+#   planMaxAgeMinutes  how long an approved `report` plan stays usable by the
+#                    next apply run   default: 60; 0 disables the limit
 #
 # An invalid value (a relative reportDirectory, an empty model name) fails at
 # load time instead of at the first command.

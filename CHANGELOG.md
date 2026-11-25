@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.21.0 — 2026-11-25
+
+- `/code-simplify` and `/code-scrub` now execute the plan the person approved:
+  an apply run picks up the last finished `report` for the same command and scope
+  and carries it into the task, instead of re-deriving a second plan that may
+  disagree with the first. The task tells the agent to stop and report if the
+  plan is wrong or stale rather than substituting its own.
+- The plan expires after `planMaxAgeMinutes` (default 60, `0` disables) — a plan
+  older than the tree it describes is worse than no plan.
+- Verified in an isolated `dsh web` instance: `/code-scrub report` on a clean
+  repository reported no findings with masked patterns, `/code-simplify report`
+  and apply both refused to invent work, and `/pua huawei` steered the protocol.
+- 81 deterministic checks.
+
 ## 0.20.0 — 2026-11-25
 
 - Caption now opens with a choice of two flows: **changing code** (requirement →

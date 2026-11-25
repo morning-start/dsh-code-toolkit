@@ -259,3 +259,4 @@ examples/*.md          按需：示范"什么算够好"
 | `scrubModel` | 隐私清理任务使用的模型；不填则跟随当前模型 |
 | `ledgerDirectory` | caption 台账目录；相对路径按项目根解析，默认 `<项目>/docs/caption` |
 | `runTimeoutMinutes` | `sub` 运行超过该分钟数就释放占用，默认 30；`0` 表示不限制。用于「卡在审批上、回合永不结束」的情况 |
+| `planMaxAgeMinutes` | `report` 出的方案在这段时间内仍可被下一次执行沿用，默认 60；`0` 表示不限制 |

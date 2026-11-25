@@ -180,6 +180,7 @@ node evals/score.mjs --case 01-null-header --report tmp/eval/01/with/report.txt
 | `locale` | 强制输出语言（`zh`、`en`…） | 跟随宿主 |
 | `ledgerDirectory` | caption 台账目录，相对路径按项目根解析 | `<项目>/docs/caption` |
 | `runTimeoutMinutes` | `sub` 运行超过这么久就释放占用（卡在审批上时不会永久阻塞） | `30`，`0` 表示不限制 |
+| `planMaxAgeMinutes` | `report` 出的方案在这段时间内仍可被下一次执行沿用 | `60`，`0` 表示不限制 |
 
 写错不会拖到运行时：相对路径、空模型名在插件加载时直接报错。
 

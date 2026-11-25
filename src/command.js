@@ -158,6 +158,22 @@ export class SessionCommand {
     return { kind: 'success', text: t('cmd.queued') }
   }
 
+  /**
+   * The plan the person approved: the last finished dry-run report for the same
+   * command and scope. Undefined when there is none, or when it is too old to
+   * still describe the tree.
+   */
+  async approvedPlan(sessionId, scope) {
+    const { host, spec } = this
+    const record = await host.journal.read(sessionId).catch(() => undefined)
+    if (!record || record.state !== 'finished' || record.command !== spec.command) return undefined
+    if (record.mode !== 'dry-run' || record.scope !== scope) return undefined
+    if (typeof record.result !== 'string' || !record.result.trim()) return undefined
+    const age = Date.now() - Date.parse(record.at ?? '')
+    if (!Number.isFinite(age) || age > host.planMaxAgeMs) return undefined
+    return record.result
+  }
+
   /** Resolve the scope and assemble the task text (shared by both paths). */
   async prepare(agent, rawInput, combined, locale, t, sessionId, report) {
     const { host, spec } = this
@@ -170,7 +186,12 @@ export class SessionCommand {
     if (!(await scopeHasChanges(scope, { cwd, signal: combined }))) throw new Error(t('error.emptyScope'))
 
     const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
-    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: true })
+    // An apply run that follows an approved plan executes that plan; re-deriving
+    // it would let the two runs disagree about what was approved.
+    const plan = mode === 'apply' && spec.followsPlan
+      ? await this.approvedPlan(sessionId, scopeLabel(scope))
+      : undefined
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: true, plan })
 
     await host.journal
       .write(sessionId, {
@@ -197,7 +218,10 @@ export class SessionCommand {
     if (!(await scopeHasChanges(scope, { cwd, signal: combined }))) throw new Error(t('error.emptyScope'))
 
     const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
-    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: false })
+    const plan = mode === 'apply' && spec.followsPlan
+      ? await this.approvedPlan(sessionId, scopeLabel(scope))
+      : undefined
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: false, plan })
 
     await host.journal
       .write(sessionId, {
@@ -236,7 +260,7 @@ export class SessionCommand {
   }
 
   /** The task text handed to either the current agent or the child. */
-  async buildPrompt({ scope, mode, cwd, locale, signal, inline }) {
+  async buildPrompt({ scope, mode, cwd, locale, signal, inline, plan }) {
     const { spec } = this
     const chinese = String(locale).startsWith('zh')
     const modeLine = mode === 'dry-run'
@@ -256,6 +280,12 @@ export class SessionCommand {
         : 'This run is in-session: write the report for a human in Markdown, not the JSON envelope.')
       : ''
 
+    const planLine = plan
+      ? (chinese
+        ? '上一次的报告已由人看过并批准，下面就是那份计划：按它执行，不要重新分析、不要自己改方案。发现计划里有错或已经过期，停下来说明，不要擅自换方案。'
+        : 'The previous report was reviewed and approved by the person; it is below. Execute that plan — do not re-derive it and do not substitute your own. If the plan is wrong or stale, stop and say so instead of changing course.')
+      : ''
+
     return [
       chinese ? `工作目录：${cwd}` : `Working directory: ${cwd}`,
       chinese ? `参考目录：${spec.persona.directory}` : `Reference directory: ${spec.persona.directory}`,
@@ -265,6 +295,7 @@ export class SessionCommand {
       '',
       chinese ? `模式：${mode}。` : `Mode: ${mode}.`,
       modeLine,
+      ...(planLine ? ['', planLine, '', '---', plan, '---'] : []),
       ...(outputLine ? ['', outputLine] : []),
       '',
       delivery,
