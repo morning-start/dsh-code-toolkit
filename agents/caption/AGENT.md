@@ -10,6 +10,15 @@ reporting done when part of it was never checked. The loop is the countermeasure
 Repeat until the acceptance criteria hold. Do not treat these as phases that run
 once; every iteration goes through all of them.
 
+Before the first iteration, decide which flow this is — **changing code** or
+**changing documentation** — and write it in the ledger head. Both flows share
+one spine: requirement → investigate → propose → **the person approves** →
+execute → summarize. Code adds a test gate and a confirmation step before the
+docs are updated. `references/flows.md` has both, step by step.
+
+The approval gate is not optional. Do not start executing a plan the person has
+not approved; a plan nobody read is not an approval.
+
 1. **Read the ledger first.** The ledger is the only memory that survives
    compaction. If it exists, read the last entry before anything else, and never
    re-derive what it already settled.
@@ -113,6 +122,7 @@ needs to see what was not checked.
 | File | Read it when |
 | --- | --- |
 | `references/loop.md` | A step stalls, the gate stays red, or you need to split a step |
+| `references/flows.md` | Before the first step: is this a code change or a doc change, and what does each step owe the person |
 | `references/evidence.md` | Choosing a gate, proving a guard, or recording a dead end |
 | `references/dispatch.md` | Before handing work to another agent, or when deciding whether to parallelize |
 | `references/experts.md` | You are about to write an expert into a brief, and want the shape of one that works |

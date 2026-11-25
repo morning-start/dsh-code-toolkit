@@ -626,6 +626,23 @@ test('caption: the expert method is referenced and carries the five parts', () =
   assert(read('agents/caption/references/dispatch.md').includes('references/experts.md'), 'dispatch points at it too')
 })
 
+test('caption: the two flows are named, gated on approval, and referenced', () => {
+  const protocol = read('agents/caption/AGENT.md')
+  assert(protocol.includes('references/flows.md'), 'AGENT.md points at the flows')
+  assert(protocol.includes('The approval gate is not optional'), 'the protocol states the gate')
+
+  const flows = read('agents/caption/references/flows.md')
+  for (const step of ['Requirement', 'Investigate', 'Propose', 'Execute', 'Summary']) {
+    assert(flows.includes(step), `the doc flow is missing: ${step}`)
+  }
+  for (const step of ['Test', 'Human confirms', 'Update the docs']) {
+    assert(flows.includes(step), `the code flow is missing: ${step}`)
+  }
+  assert(flows.includes('Flow A') && flows.includes('Flow B'), 'both flows are named')
+  assert(flows.includes('The approval gate is real'), 'the gate is stated in the flows too')
+  assert(flows.includes('Delete before you add'), 'the doc flow has its own rules')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},

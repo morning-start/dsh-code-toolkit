@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.20.0 — 2026-11-25
+
+- Caption now opens with a choice of two flows: **changing code** (requirement →
+  investigate → propose → human approves → execute → test → human confirms →
+  update the docs) and **changing documentation** (requirement → investigate →
+  propose → human approves → execute → summarize). `references/flows.md` gives
+  each step's product and its exit condition, the rules that keep it honest, and
+  how to choose when a change touches both.
+- The approval gate is stated as a hard stop in the protocol: a plan nobody read
+  is not an approval. The flow is recorded in the ledger head.
+- 79 deterministic checks.
+
 ## 0.19.0 — 2026-11-25
 
 - Caption now teaches how to write an expert into a dispatch brief:
