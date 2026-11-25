@@ -128,7 +128,7 @@ export function apply(ctx, config = {}) {
       name: 'code-review',
       command: 'review',
       descriptionKey: 'cmd.review',
-      hintKey: 'hint.scope',
+      hintKey: 'hint.review',
       persona: personas.review,
       model: config.reviewModel,
       forceDryRun: false,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.26.1 — 2026-11-25
+
+- `/code-review` has its own input hint: it names the default scope (uncommitted,
+  or the branch when clean), `--branch`, and that it fixes by default while
+  `report` keeps the report-only behaviour. The shared scope hint no longer
+  describes it.
+
 ## 0.26.0 — 2026-11-25
 
 - `/code-review` now fixes what it finds. The default run reports and then fixes
