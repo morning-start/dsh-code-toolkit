@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.19.0 — 2026-11-25
+
+- Caption now teaches how to write an expert into a dispatch brief:
+  `references/experts.md` gives the five parts (identity and bar, inputs, what
+  counts as a finding, what does not, output shape), the rules that make one
+  usable, and a weak/strong pair on the same slice. The protocol and the dispatch
+  reference both point at it.
+- No new mechanism: an expert is still a paragraph in the brief. The plugin does
+  not store, name or reuse experts — that would make a light command heavy.
+- 78 deterministic checks.
+
 ## 0.18.0 — 2026-11-25
 
 - A `sub` run that hangs — typically an approval nobody answers — no longer blocks

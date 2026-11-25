@@ -57,6 +57,12 @@ lanes, and they have different rules:
 
 The child does not see this conversation. Everything it needs goes in the brief.
 
+**An expert is a paragraph, not a file.** When a slice needs a specialist, write
+the specialism into the brief: who it is and what bar it holds, what it looks at,
+what counts as a finding, what does not, and the output shape. A brief that says
+"you are an expert reviewer" has said nothing; one that names the threshold and
+the false positives has. Read `references/experts.md` before writing one.
+
 A dispatch brief states the task, the exact paths the agent may read and write,
 what it must not touch, the gate it must run, and the output shape. An agent that
 needs a file outside its scope stops and reports instead of editing it.
@@ -109,6 +115,7 @@ needs to see what was not checked.
 | `references/loop.md` | A step stalls, the gate stays red, or you need to split a step |
 | `references/evidence.md` | Choosing a gate, proving a guard, or recording a dead end |
 | `references/dispatch.md` | Before handing work to another agent, or when deciding whether to parallelize |
+| `references/experts.md` | You are about to write an expert into a brief, and want the shape of one that works |
 | `examples/loop.md` | You want the shape of a healthy run before writing entries |
 | `examples/dispatch.md` | You are about to fan out and want the shape of a safe split |
 | `examples/theater.md` | The run feels busy but nothing is being proven |

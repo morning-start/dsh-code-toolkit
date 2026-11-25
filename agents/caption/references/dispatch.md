@@ -93,6 +93,10 @@ Every dispatch states, in the prompt:
 
 A brief that omits "may write" is not a brief; it is an invitation to collide.
 
+When the slice needs a specialist rather than a generalist, the brief also carries
+the expert paragraph — identity and bar, inputs, what counts, what does not, and
+the output shape. `references/experts.md` has the pattern and a worked example.
+
 ## Merging
 
 1. Read each result against its brief. An agent that wrote outside its scope has

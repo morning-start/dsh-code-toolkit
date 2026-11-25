@@ -612,6 +612,20 @@ await testAsync('review: a run past the timeout releases its slot', async () => 
   rmSync(store, { recursive: true, force: true })
 })
 
+test('caption: the expert method is referenced and carries the five parts', () => {
+  const protocol = read('agents/caption/AGENT.md')
+  assert(protocol.includes('references/experts.md'), 'AGENT.md points at the expert method')
+  assert(protocol.includes('An expert is a paragraph, not a file'), 'the protocol says what an expert is')
+
+  const experts = read('agents/caption/references/experts.md')
+  for (const part of ['Identity and bar', 'What it looks at', 'What counts as a finding', 'What is not a finding', 'Output shape']) {
+    assert(experts.includes(part), `the method is missing: ${part}`)
+  }
+  assert(experts.includes('Weak:') && experts.includes('Strong:'), 'the method shows a weak and a strong brief')
+  assert(experts.includes('No delegation'), 'an expert reports instead of spawning')
+  assert(read('agents/caption/references/dispatch.md').includes('references/experts.md'), 'dispatch points at it too')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
