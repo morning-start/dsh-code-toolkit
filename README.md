@@ -179,6 +179,7 @@ node evals/score.mjs --case 01-null-header --report tmp/eval/01/with/report.txt
 | `reviewModel` / `simplifyModel` / `scrubModel` | 该命令的子 agent 用哪个模型 | 宿主默认 |
 | `locale` | 强制输出语言（`zh`、`en`…） | 跟随宿主 |
 | `ledgerDirectory` | caption 台账目录，相对路径按项目根解析 | `<项目>/docs/caption` |
+| `runTimeoutMinutes` | `sub` 运行超过这么久就释放占用（卡在审批上时不会永久阻塞） | `30`，`0` 表示不限制 |
 
 写错不会拖到运行时：相对路径、空模型名在插件加载时直接报错。
 

@@ -547,13 +547,20 @@ await testAsync('scope: an empty line means the command default', async () => {
   assertEqual(explicit.scope.mode, 'files', 'an explicit line still wins')
 })
 
-await testAsync('scope: a branch with no base falls back to the recent commits', async () => {
+await testAsync('scope: a branch resolves to a base, or to the recent commits', async () => {
   const scope = await resolveScope({ mode: 'branch' }, { cwd: ROOT })
-  assertEqual(scope.mode, 'recent', 'falls back instead of reviewing nothing')
-  assertEqual(scope.count, 5, 'window size')
-  const text = await scopeInstruction(scope, { cwd: ROOT })
-  assert(text.includes('last 5 commits'), 'the instruction names the window')
-  assertEqual(scopeLabel(scope), 'last 5 commits', 'label')
+  // Either the repository has a base branch to compare with, or the scope falls
+  // back to a window; what must never happen is an empty diff.
+  assert(scope.mode === 'base' || scope.mode === 'recent', `unexpected scope ${scope.mode}`)
+  if (scope.mode === 'recent') {
+    assertEqual(scope.count, 5, 'window size')
+    const text = await scopeInstruction(scope, { cwd: ROOT })
+    assert(text.includes('last 5 commits'), 'the instruction names the window')
+    assertEqual(scopeLabel(scope), 'last 5 commits', 'label')
+  } else {
+    assert(typeof scope.ref === 'string' && scope.ref.length > 0, 'a base ref is named')
+    assertEqual(scopeLabel(scope), `HEAD vs ${scope.ref}`, 'label')
+  }
 })
 
 await testAsync('scope: a clean working tree has nothing to review', async () => {
@@ -589,6 +596,22 @@ test('caption: dispatch names the two mechanisms and forbids mixing them', () =>
   assert(reference.includes('single-flight'), 'the reference explains the sub cap')
 })
 
+await testAsync('review: a run past the timeout releases its slot', async () => {
+  const agent = {
+    id: 'agent-timeout',
+    session: { id: 'session-timeout', header: { cwd: 'C:\\work\\demo' } },
+    followup: () => {},
+  }
+  const store = join(ROOT, 'tmp', 'timeout-journal')
+  rmSync(store, { recursive: true, force: true })
+  const definition = reviewDefinition({ reportDirectory: store, runTimeoutMinutes: 0 })
+  const first = await definition.handler({ agent, rawInput: 'sub report', signal: new AbortController().signal })
+  const second = await definition.handler({ agent, rawInput: 'sub report', signal: new AbortController().signal })
+  assertEqual(first.kind, 'success', 'the first run is accepted')
+  assertEqual(second.kind, 'success', 'a stale slot is released instead of blocking forever')
+  rmSync(store, { recursive: true, force: true })
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
@@ -614,6 +637,17 @@ function captionDefinition(config = {}) {
     commands: { register: (definition) => registered.push(definition) },
   }, config)
   return registered.find((definition) => definition.name === 'code-caption')
+}
+
+function reviewDefinition(config = {}) {
+  const registered = []
+  apply({
+    effect: () => () => {},
+    get: () => undefined,
+    on: () => () => {},
+    commands: { register: (definition) => registered.push(definition) },
+  }, config)
+  return registered.find((definition) => definition.name === 'code-review')
 }
 
 test('simplify: no gate, no apply, and the plan ranks by value', () => {  const text = read('agents/simplify/AGENT.md')

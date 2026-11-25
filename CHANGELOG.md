@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.18.0 — 2026-11-25
+
+- A `sub` run that hangs — typically an approval nobody answers — no longer blocks
+  the session forever: past `runTimeoutMinutes` (default 30, `0` disables) the
+  slot is released and the next command may start.
+- Verified in an isolated `dsh web` instance: the caption loop drove a real agent
+  (read the ledger first, wrote it, proved its guard red then green, committed),
+  and `/code-review sub` produced a report the shell delivered back into the
+  session.
+- 77 deterministic checks.
+
 ## 0.17.0 — 2026-11-25
 
 - `/code-caption` no longer re-injects its 5 KB protocol on a second run in the

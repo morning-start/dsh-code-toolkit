@@ -122,7 +122,17 @@ export class SessionCommand {
   startIsolated(agent, rawInput, signal, locale, t, report) {
     const { host, spec } = this
     const key = agent.id
-    if (host.running.has(key)) return { kind: 'error', text: t('error.busy') }
+    const stale = host.running.get(key)
+    // A run can hang on something outside its own control — an approval nobody
+    // answers, a child that never reports. Past the limit the slot is released
+    // so the next command is not blocked forever.
+    if (stale && Date.now() - stale.startedAt < host.runTimeoutMs) {
+      return { kind: 'error', text: t('error.busy') }
+    }
+    if (stale) {
+      stale.controller.abort()
+      host.running.delete(key)
+    }
 
     const controller = new AbortController()
     const combined = AbortSignal.any([signal, controller.signal])

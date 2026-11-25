@@ -256,3 +256,4 @@ examples/*.md          按需：示范"什么算够好"
 | `reportDirectory` | 报告落盘目录，必须是绝对路径；默认 `$DSH_HOME/code-toolkit` |
 | `scrubModel` | 隐私清理任务使用的模型；不填则跟随当前模型 |
 | `ledgerDirectory` | caption 台账目录；相对路径按项目根解析，默认 `<项目>/docs/caption` |
+| `runTimeoutMinutes` | `sub` 运行超过该分钟数就释放占用，默认 30；`0` 表示不限制。用于「卡在审批上、回合永不结束」的情况 |

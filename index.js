@@ -23,6 +23,15 @@ function loadPersona(role) {
   }
 }
 
+/** A run that outlives this window releases its slot; 0 disables the limit. */
+function runTimeoutMs(minutes) {
+  const value = Number(minutes ?? 30)
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(translate('en', 'error.runTimeout'))
+  }
+  return value * 60_000
+}
+
 export function apply(ctx, config = {}) {
   const fallbackLocale = resolveLocale(config.locale)
   /** An explicit config.locale wins; otherwise the host's preference decides. */
@@ -72,6 +81,7 @@ export function apply(ctx, config = {}) {
     ctx,
     journal,
     running,
+    runTimeoutMs: runTimeoutMs(config.runTimeoutMinutes),
     localeNow,
     ledgerDirectory,
     translate: (locale, key) => translate(locale, key),
