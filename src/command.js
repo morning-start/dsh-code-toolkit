@@ -58,11 +58,29 @@ export class SessionCommand {
     }
     if (typeof agent?.steer !== 'function') return { kind: 'error', text: t('error.noSteer') }
 
+    // A protocol is long; injecting it twice in one session doubles the context
+    // and gives the agent two copies to disagree with. Only the task is new.
+    const sessionId = agent.session?.id ?? agent.id
+    const previous = await host.journal.read(sessionId).catch(() => undefined)
+    const installed = previous?.command === spec.command && previous?.state === 'installed'
+
     await agent.steer({
-      content: [{ type: 'text', text: spec.buildText({ rawInput, agent, locale, host }) }],
+      content: [{ type: 'text', text: spec.buildText({ rawInput, agent, locale, host, installed }) }],
       source: { kind: 'user' },
     })
-    return { kind: 'success', text: spec.receipt(rawInput, t) }
+
+    await host.journal
+      .write(sessionId, {
+        state: 'installed',
+        command: spec.command,
+        at: new Date().toISOString(),
+      })
+      .catch(() => undefined)
+
+    return {
+      kind: 'success',
+      text: installed ? spec.receipt(rawInput, t, true, agent) : spec.receipt(rawInput, t, false, agent),
+    }
   }
 
   /** Scope-based task: inline by default, isolated with `sub`. */

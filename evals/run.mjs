@@ -579,6 +579,16 @@ await testAsync('scope: a clean working tree has nothing to review', async () =>
   rmSync(dir, { recursive: true, force: true })
 })
 
+test('caption: dispatch names the two mechanisms and forbids mixing them', () => {
+  const text = read('agents/caption/AGENT.md')
+  for (const marker of ['`subagent`', '/code-review sub', 'does not see this conversation']) {
+    assert(text.includes(marker), `AGENT.md is missing ${marker}`)
+  }
+  const reference = read('agents/caption/references/dispatch.md')
+  assert(reference.includes('One mechanism per slice'), 'the reference forbids mixing')
+  assert(reference.includes('single-flight'), 'the reference explains the sub cap')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
@@ -595,14 +605,14 @@ test('apply() rejects an invalid config instead of failing later', () => {
   assert(threw, 'a relative reportDirectory must be rejected')
 })
 
-function captionDefinition() {
+function captionDefinition(config = {}) {
   const registered = []
   apply({
     effect: () => () => {},
     get: () => undefined,
     on: () => () => {},
     commands: { register: (definition) => registered.push(definition) },
-  }, {})
+  }, config)
   return registered.find((definition) => definition.name === 'code-caption')
 }
 
@@ -644,12 +654,64 @@ test('caption: dispatch is limited to slices that cannot collide', () => {
   }
 })
 
-await testAsync('caption: task and protocol are steered into the session', async () => {
-  const definition = captionDefinition()
+await testAsync('caption: a second run adds the task, not a second protocol', async () => {
+  const store = join(ROOT, 'tmp', 'caption-journal')
+  rmSync(store, { recursive: true, force: true })
+  const definition = captionDefinition({ reportDirectory: store })
   const steered = []
   const agent = {
     id: 'a1',
+    session: { id: 'session-caption', header: { cwd: 'C:\\work\\demo' } },
+    steer: (message) => { steered.push(message) },
+  }
+
+  const first = await definition.handler({ agent, rawInput: 'first task' })
+  const second = await definition.handler({ agent, rawInput: 'second task' })
+
+  assertEqual(first.kind, 'success', 'first kind')
+  assertEqual(second.kind, 'success', 'second kind')
+  assertEqual(steered.length, 2, 'both are steered')
+  const [one, two] = steered.map((message) => message.content[0].text)
+  assert(one.includes('Record one caption entry'), 'the first run carries the protocol')
+  assert(!two.includes('Record one caption entry'), 'the second run does not repeat it')
+  assert(two.includes('second task'), 'the second run still carries its task')
+  assert(two.includes('already installed'), 'and says why it is short')
+  assert(second.text.includes('只补了任务'), 'the receipt says so')
+
+  rmSync(store, { recursive: true, force: true })
+})
+
+await testAsync('caption: the ledger directory is configurable', async () => {
+  const agent = {
+    id: 'a1',
     session: { header: { cwd: 'C:\\work\\demo' } },
+    steer: () => {},
+  }
+  const relative = captionDefinition({ ledgerDirectory: 'notes/caption' })
+  const result = await relative.handler({ agent, rawInput: 'x' })
+  assert(result.text.includes(join('C:\\work\\demo', 'notes', 'caption')), 'a relative path resolves against the project')
+
+  const absolute = captionDefinition({ ledgerDirectory: 'D:\\ledgers' })
+  const fixed = await absolute.handler({ agent, rawInput: 'x' })
+  assert(fixed.text.includes('D:\\ledgers'), 'an absolute path is used as is')
+
+  let failed = false
+  try {
+    captionDefinition({ ledgerDirectory: '  ' })
+  } catch (error) {
+    failed = /ledgerDirectory/.test(String(error?.message))
+  }
+  assert(failed, 'an empty ledgerDirectory fails at load')
+})
+
+await testAsync('caption: task and protocol are steered into the session', async () => {
+  const store = join(ROOT, 'tmp', 'caption-journal-fresh')
+  rmSync(store, { recursive: true, force: true })
+  const definition = captionDefinition({ reportDirectory: store })
+  const steered = []
+  const agent = {
+    id: 'a1',
+    session: { id: 'session-caption-fresh', header: { cwd: 'C:\\work\\demo' } },
     steer: (message) => { steered.push(message) },
   }
 
@@ -662,6 +724,7 @@ await testAsync('caption: task and protocol are steered into the session', async
   assert(text.includes('Reference directory:'), 'names the reference directory')
   assert(text.includes('Record one caption entry'), 'carries the loop')
   assert(text.includes('caption'), 'names the ledger directory')
+  rmSync(store, { recursive: true, force: true })
 })
 
 await testAsync('caption: an empty task falls back to the current work', async () => {
