@@ -131,7 +131,7 @@ export function apply(ctx, config = {}) {
       hintKey: 'hint.scope',
       persona: personas.review,
       model: config.reviewModel,
-      forceDryRun: true,
+      forceDryRun: false,
       defaultScope: 'branch',
       structured: true,
       dryRunText: 'Report only. Change no files.',

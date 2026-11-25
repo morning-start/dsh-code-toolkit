@@ -22,7 +22,7 @@ const LANGUAGE_NAMES = {
 const MESSAGES = {
   zh: {
     'cmd.simplify': '简化代码：功能逐位不变，默认直接改整个项目',
-    'cmd.review': '审查代码改动：只读，出带优先级的报告',
+    'cmd.review': '审查代码改动：默认出报告并修复发现的问题，加 report 只出报告',
     'cmd.scrub': '清理隐私信息：密钥、密码、账号、本机路径，默认直接改',
     'cmd.caption': '把难任务装进 caption 循环：一步一验，过程落成台账',
     'hint.caption': '留空即继续当前任务；或写下任务与验收判据',
@@ -67,12 +67,14 @@ const MESSAGES = {
     'report.verdict': '结论：',
     'report.noFindings': '没有发现需要处理的问题。',
     'report.limitation': '未覆盖：',
+    'report.fixed': '已修复',
+    'report.verifiedBy': '验证：',
     'mode.dryRun': 'dry-run（未改文件）',
     'mode.apply': 'apply（已改文件）',
   },
   en: {
     'cmd.simplify': 'Simplify code without changing behavior; writes the whole project by default',
-    'cmd.review': 'Review a change: read-only, prioritized findings',
+    'cmd.review': 'Review a change and fix what it finds; add report for the report only',
     'cmd.scrub': 'Find and redact secrets, credentials, and personal data; writes by default',
     'cmd.caption': 'Run a hard task through the caption loop: one step, one proof, a ledger',
     'hint.caption': 'Leave empty to continue the current task; or state the task and its acceptance criteria',
@@ -117,6 +119,8 @@ const MESSAGES = {
     'report.verdict': 'Verdict: ',
     'report.noFindings': 'No findings worth acting on.',
     'report.limitation': 'Not checked: ',
+    'report.fixed': 'Fixed',
+    'report.verifiedBy': 'Verified by: ',
     'mode.dryRun': 'dry-run (no files changed)',
     'mode.apply': 'apply (files changed)',
   },

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0 — 2026-11-25
+
+- `/code-review` now fixes what it finds. The default run reports and then fixes
+  the findings it can prove, re-running the gate after each fix and reverting any
+  fix that turns it red; `report` keeps the old report-only behaviour.
+- The review persona gained a Mode section and a `fixed` array in its output
+  schema (title, file, change, verified_by), rendered as a "Fixed" section after
+  the findings.
+- 85 deterministic checks.
+
 ## 0.25.0 — 2026-11-25
 
 - `--branch <ref>` picks which branch to compare against; the default is still

@@ -75,8 +75,23 @@ function decode(raw) {
     ? value.limitations.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim())
     : []
 
+  const fixed = Array.isArray(value.fixed)
+    ? value.fixed.flatMap((item) => {
+      if (!item || typeof item !== 'object') return []
+      const title = textOf(item.title)
+      if (!title) return []
+      return [{
+        title,
+        file: textOf(item.file),
+        change: textOf(item.change),
+        verifiedBy: textOf(item.verified_by),
+      }]
+    })
+    : []
+
   return {
     findings,
+    fixed,
     summary,
     limitations,
     format: 'structured',
@@ -156,6 +171,13 @@ function renderFinding(finding) {
   return [`### ${tagged}`, location, finding.body].filter(Boolean).join('\n\n')
 }
 
+/** A fix the reviewer made: what changed, where, and how it was verified. */
+function renderFix(fix, t) {
+  const location = fix.file ? fileLink(fix.file, 0, 0) : ''
+  const verified = fix.verifiedBy ? `${t('report.verifiedBy')}${fix.verifiedBy}` : ''
+  return [`### ${fix.title}`, location, fix.change, verified].filter(Boolean).join('\n\n')
+}
+
 /**
  * Render a parsed report as Markdown. `t` translates the few chrome labels;
  * finding text is never translated — it is the agent's own words.
@@ -165,12 +187,14 @@ export function renderReport(report, t) {
 
   const limits = report.limitations.map((item) => `- ${t('report.limitation')}${item}`)
   const empty = !report.findings.length ? t('report.noFindings') : ''
+  const fixed = report.fixed ?? []
 
   return [
     report.summary,
     report.correctness ? `${t('report.verdict')}${report.correctness}` : '',
     empty,
     ...report.findings.map(renderFinding),
+    fixed.length ? `## ${t('report.fixed')}\n\n${fixed.map((fix) => renderFix(fix, t)).join('\n\n')}` : '',
     limits.length ? limits.join('\n') : '',
   ]
     .filter(Boolean)

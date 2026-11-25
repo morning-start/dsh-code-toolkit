@@ -4,7 +4,7 @@
 
 ## 这个项目是什么
 
-DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带优先级的报告）、`/code-simplify`（精炼，默认直接改）、`/code-scrub`（找密钥、账号、本机路径，默认直接改）、`/code-caption`（把难任务装进显式循环，过程落成台账）和 `/pua`（把「失败换方法、完成要证据」的协议注入当前会话）。三件检查默认把任务交给**当前会话**，加 `sub` 才换成**独立上下文的原生 spawn agent**，加 `report` 只出报告不写盘。
+DeepSeek Harness 插件，提供五条命令：`/code-review`（审查并修复发现的问题，`report` 只出报告）、`/code-simplify`（精炼，默认直接改）、`/code-scrub`（找密钥、账号、本机路径，默认直接改）、`/code-caption`（把难任务装进显式循环，过程落成台账）和 `/pua`（把「失败换方法、完成要证据」的协议注入当前会话）。三件检查默认把任务交给**当前会话**，加 `sub` 才换成**独立上下文的原生 spawn agent**，加 `report` 只出报告不写盘。
 
 ## 每条命令的特性
 
@@ -12,7 +12,7 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带�
 
 | 命令 | 解决什么 | 生命周期 | 契约 | 能不能改文件 |
 | --- | --- | --- | --- | --- |
-| `/code-review` | 一次判断：这段改动有没有问题 | 一次性，产出即结束 | 无审核环节——它不改，报告就是终点 | 否（`forceDryRun`） |
+| `/code-review` | 一次判断：这段改动有没有问题，并把它修掉 | 一次性 | 两段式：默认先报告再修（修完必须跑门禁），`report` 只出报告 | 是，默认改 |
 | `/code-simplify` | 一次改造：功能不变的前提下简化 | 一次性 | 两段式：`report` 出方案 → 人看过 → 再跑一次执行 | 是，默认写 |
 | `/code-scrub` | 一次清理：找出并移除隐私信息 | 一次性 | 同上，报告默认脱敏 | 是，默认写 |
 | `/code-caption` | 复杂任务：跨轮、要验证、要台账 | **持续**，多轮多步 | 完整契约：需求 → 调查 → 方案 → **人审** → 执行 → 测试 → 人确认 → 改文档（或改文档流程） | 是，按方案 |
@@ -20,7 +20,7 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查，出带�
 | `/code-status` | 查询：干到哪了 | 只读 | 无 | 否 |
 | `/code-cancel` | 中断：停掉正在跑的 | 只读 | 无 | 否 |
 
-判据：**只有 caption 需要完整契约**，因为它是唯一跨轮、唯一要连续跑门禁、唯一有「方案被推翻要回头改」的命令。其余命令是一次单独的行动——它们的「审核」要么不存在（review 不改），要么压缩成一个开关（simplify/scrub 的 `report`）。
+判据：**只有 caption 需要完整契约**，因为它是唯一跨轮、唯一要连续跑门禁、唯一有「方案被推翻要回头改」的命令。其余命令是一次单独的行动——它们的「审核」要么压缩成一个开关（`report`），要么根本不存在（status、cancel）。
 
 所以：**不要给一次性命令加循环、加台账、加审核门禁**；也不要因为外壳统一，就以为契约也该统一。新增命令时先回答上表那四列，再决定它属于哪一类。
 
@@ -160,7 +160,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（84 项，不需要模型）
+npm test                                   # 确定性测试（85 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt

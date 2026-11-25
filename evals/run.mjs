@@ -782,6 +782,22 @@ await testAsync('receipt: the message says where the task went and what it will 
   assert(sub.text.includes('独立子 agent'), 'a sub run says it went to an isolated agent')
 })
 
+test('review: apply mode reports the fixes it made, dry-run does not', () => {
+  const withFixes = parseReport(JSON.stringify({
+    findings: [{ title: 'Guard the null header', body: 'x', priority: 1, code_location: { absolute_file_path: 'C:\\a.js', line_range: { start: 3, end: 3 } } }],
+    overall_explanation: 'One finding.',
+    fixed: [{ title: 'Guard the null header', file: 'C:\\a.js', change: 'Added a guard.', verified_by: 'node --test → 12 pass' }],
+  }))
+  assertEqual(withFixes.fixed.length, 1, 'the fix is parsed')
+  const rendered = renderReport(withFixes, (key) => key)
+  assert(rendered.includes('report.fixed'), 'the fixed section is rendered')
+  assert(rendered.includes('node --test → 12 pass'), 'and carries the verification')
+
+  const dryRun = parseReport(JSON.stringify({ findings: [], overall_explanation: 'Clean.' }))
+  assertEqual(dryRun.fixed.length, 0, 'no fixes in a dry-run report')
+  assert(!renderReport(dryRun, (key) => key).includes('report.fixed'), 'and no section either')
+})
+
 test('apply() rejects an invalid config instead of failing later', () => {
   const ctx = {
     effect: () => () => {},
