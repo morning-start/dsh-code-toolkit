@@ -143,21 +143,14 @@ export async function scopeHasChanges(scope, { cwd, signal } = {}) {
   if (!cwd) return true
   const changed = async (args) => (await git(cwd, args, signal)).trim().length > 0
   try {
-    switch (scope.mode) {
-      case 'worktree':
-        return await changed(['status', '--porcelain'])
-      case 'base': {
-        const base = await mergeBase(cwd, scope.ref, signal)
-        if (!base) return true
-        return (await changed(['diff', '--name-only', base])) || (await changed(['ls-files', '--others', '--exclude-standard']))
-      }
-      case 'commit':
-        return true
-      case 'recent':
-        return true
-      default:
-        return true
+    if (scope.mode === 'worktree') return await changed(['status', '--porcelain'])
+    if (scope.mode === 'base') {
+      const base = await mergeBase(cwd, scope.ref, signal)
+      if (!base) return true
+      return (await changed(['diff', '--name-only', base])) || (await changed(['ls-files', '--others', '--exclude-standard']))
     }
+    // A commit always has content; a window and a project are never empty.
+    return true
   } catch {
     return true
   }
@@ -185,12 +178,13 @@ export async function scopeInstruction(scope, { cwd, signal } = {}) {
       return 'Scope: the uncommitted changes in this working directory (staged, unstaged, and untracked). Start with `git status --short` and `git diff HEAD`.'
     case 'project':
       return 'Scope: the whole project on the current branch — every source file under the repository root, not only the diff. Start by listing the tree and reading the files you will touch; do not limit yourself to recent changes.'
-    case 'branch': {
-      let ref
+    case 'branch':
+    case 'base': {
+      let ref = scope.ref
       let base
       if (cwd) {
         try {
-          ref = await defaultBase(cwd, signal)
+          ref ??= await defaultBase(cwd, signal)
           if (ref) base = await mergeBase(cwd, ref, signal)
         } catch {
           base = undefined
@@ -199,24 +193,13 @@ export async function scopeInstruction(scope, { cwd, signal } = {}) {
       if (base) {
         return `Scope: everything this branch adds on top of \`${ref}\`. The merge base is ${base}; start with \`git diff ${base}\` (and \`git log ${base}..HEAD\` for intent).`
       }
-      return 'Scope: the changes on the current branch. Find the base first (`git merge-base HEAD origin/main`), then diff against it; when the repository has no base branch, fall back to `git diff HEAD`.'
-    }
-    case 'recent':
-      return `Scope: the last ${scope.count} commits on the current branch (the branch has no base to compare with). Start with \`git log -${scope.count} --oneline\` and \`git diff HEAD~${scope.count}..HEAD\`; if the history is shorter, diff against the root commit.`
-    case 'base': {
-      let base
-      if (cwd) {
-        try {
-          base = await mergeBase(cwd, scope.ref, signal)
-        } catch {
-          base = undefined
-        }
-      }
-      if (base) {
-        return `Scope: everything this branch adds on top of \`${scope.ref}\`. The merge base is ${base}; start with \`git diff ${base}\` (and \`git log ${base}..HEAD\` for intent).`
+      if (scope.mode === 'branch') {
+        return 'Scope: the changes on the current branch. Find the base first (`git merge-base HEAD origin/main`), then diff against it; when the repository has no base branch, fall back to `git diff HEAD`.'
       }
       return `Scope: everything this branch adds on top of \`${scope.ref}\`. Find the merge base first (\`git merge-base HEAD ${scope.ref}\`), then \`git diff <merge-base>\`.`
     }
+    case 'recent':
+      return `Scope: the last ${scope.count} commits on the current branch (the branch has no base to compare with). Start with \`git log -${scope.count} --oneline\` and \`git diff HEAD~${scope.count}..HEAD\`; if the history is shorter, diff against the root commit.`
     case 'commit':
       return `Scope: the single commit \`${scope.ref}\`${scope.title ? ` (${scope.title})` : ''}. Start with \`git show ${scope.ref}\`.`
     case 'files':

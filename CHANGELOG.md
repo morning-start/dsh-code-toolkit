@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.22.0 — 2026-11-25
+
+- Every command now delivers the same way. `/code-caption` and `/pua` used to
+  steer with `source: { kind: 'user' }`, so the host rendered the whole protocol
+  as a green user bubble; they now use the plugin's own source kind, like the
+  task commands, and the UI folds them into one request card.
+- Simplification pass over the plugin's own source: the two delivery paths share
+  one scope resolution, the duplicated minute-to-ms converters are one function,
+  `branch` and `base` scope instructions are one branch, and the message builders
+  share one wrapper. Net −51 lines, no behaviour change.
+- 81 deterministic checks.
+
 ## 0.21.0 — 2026-11-25
 
 - `/code-simplify` and `/code-scrub` now execute the plan the person approved:

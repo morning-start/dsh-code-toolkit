@@ -23,44 +23,26 @@ export function userMessage(text) {
   }
 }
 
+/**
+ * The instruction that wraps a message the model must relay, not re-do.
+ * The two callers differ only in that opening sentence.
+ */
+function relayMessage(lead, body, language) {
+  return userMessage([lead, '', body, '', language].join('\n'))
+}
+
 /** The report is delivered as a task the model must relay, not re-do. */
 export function reportMessage(report, language, chinese = false) {
-  const lines = chinese
-    ? [
-      '下面是这次代码工具箱任务的完成报告。请原样转述给用户：不要增删或改写结论，也不要重新发起审查。',
-      '',
-      report,
-      '',
-      language,
-    ]
-    : [
-      'Here is the completed code-toolkit report. Present it to the user verbatim:',
-      'do not add, remove, or rewrite findings, and do not start another review.',
-      '',
-      report,
-      '',
-      language,
-    ]
-  return userMessage(lines.join('\n'))
+  const lead = chinese
+    ? '下面是这次代码工具箱任务的完成报告。请原样转述给用户：不要增删或改写结论，也不要重新发起审查。'
+    : 'Here is the completed code-toolkit report. Present it to the user verbatim:\ndo not add, remove, or rewrite findings, and do not start another review.'
+  return relayMessage(lead, report, language)
 }
 
 /** A failed run still has to say why, or the user is left with a silent box. */
 export function failureMessage(detail, language, chinese = false) {
-  const lines = chinese
-    ? [
-      '这次代码工具箱任务没有完成。请把下面的原因原样转述给用户，不要自行重试：',
-      '',
-      detail,
-      '',
-      language,
-    ]
-    : [
-      'The code-toolkit run did not complete. Present this status to the user verbatim',
-      'and do not retry it on your own:',
-      '',
-      detail,
-      '',
-      language,
-    ]
-  return userMessage(lines.join('\n'))
+  const lead = chinese
+    ? '这次代码工具箱任务没有完成。请把下面的原因原样转述给用户，不要自行重试：'
+    : 'The code-toolkit run did not complete. Present this status to the user verbatim\nand do not retry it on your own:'
+  return relayMessage(lead, detail, language)
 }

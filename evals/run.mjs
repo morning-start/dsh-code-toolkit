@@ -859,6 +859,7 @@ await testAsync('caption: task and protocol are steered into the session', async
   assert(text.includes('Reference directory:'), 'names the reference directory')
   assert(text.includes('Record one caption entry'), 'carries the loop')
   assert(text.includes('caption'), 'names the ledger directory')
+  assertEqual(steered[0].source?.kind, 'morning-start-code-toolkit', 'the host sees a plugin request, not a typed message')
   rmSync(store, { recursive: true, force: true })
 })
 

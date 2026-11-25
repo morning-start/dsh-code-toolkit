@@ -1,5 +1,5 @@
 import { resolveScope, scopeHasChanges, scopeInstruction, scopeLabel, selectScope, splitFlags } from './selection.js'
-import { failureMessage, reportMessage, userMessage } from './delivery.js'
+import { failureMessage, reportMessage, userMessage, SOURCE_KIND } from './delivery.js'
 import { outputLanguage } from './i18n.js'
 
 /**
@@ -66,7 +66,10 @@ export class SessionCommand {
 
     await agent.steer({
       content: [{ type: 'text', text: spec.buildText({ rawInput, agent, locale, host, installed }) }],
-      source: { kind: 'user' },
+      // Every command delivers the same way: the host sees a plugin request, not
+      // something the person typed, so the UI folds it into one card instead of
+      // pasting the protocol into the conversation.
+      source: { kind: SOURCE_KIND },
     })
 
     await host.journal
@@ -174,8 +177,14 @@ export class SessionCommand {
     return record.result
   }
 
-  /** Resolve the scope and assemble the task text (shared by both paths). */
-  async prepare(agent, rawInput, combined, locale, t, sessionId, report) {
+  /**
+   * Resolve the scope and assemble the task text.
+   *
+   * Both delivery paths need the same thing — a concrete scope, a mode, the
+   * approved plan, the prompt — and differ only in what they do with it. Keeping
+   * the resolution here means the two paths cannot drift apart.
+   */
+  async resolveTask(agent, rawInput, combined, locale, t, sessionId, report, inline) {
     const { host, spec } = this
     const cwd = agent.session?.header?.cwd
     if (!cwd) throw new Error(t('error.noCwd'))
@@ -191,7 +200,15 @@ export class SessionCommand {
     const plan = mode === 'apply' && spec.followsPlan
       ? await this.approvedPlan(sessionId, scopeLabel(scope))
       : undefined
-    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: true, plan })
+    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline, plan })
+
+    return { scope, mode, prompt }
+  }
+
+  /** Resolve the scope and assemble the task text (shared by both paths). */
+  async prepare(agent, rawInput, combined, locale, t, sessionId, report) {
+    const { host, spec } = this
+    const { scope, mode, prompt } = await this.resolveTask(agent, rawInput, combined, locale, t, sessionId, report, true)
 
     await host.journal
       .write(sessionId, {
@@ -209,19 +226,7 @@ export class SessionCommand {
   /** The isolated run: same preparation, then the child, then the report text. */
   async execute(agent, rawInput, combined, locale, t, sessionId, report) {
     const { host, spec } = this
-    const cwd = agent.session?.header?.cwd
-    if (!cwd) throw new Error(t('error.noCwd'))
-
-    const { scope: symbolic } = await selectScope(host.ctx, agent, rawInput, combined, t, spec.defaultScope ?? 'project')
-    if (!symbolic) throw new Error(t('error.noScope'))
-    const scope = await resolveScope(symbolic, { cwd, signal: combined })
-    if (!(await scopeHasChanges(scope, { cwd, signal: combined }))) throw new Error(t('error.emptyScope'))
-
-    const mode = spec.forceDryRun || report ? 'dry-run' : 'apply'
-    const plan = mode === 'apply' && spec.followsPlan
-      ? await this.approvedPlan(sessionId, scopeLabel(scope))
-      : undefined
-    const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline: false, plan })
+    const { scope, mode, prompt } = await this.resolveTask(agent, rawInput, combined, locale, t, sessionId, report, false)
 
     await host.journal
       .write(sessionId, {

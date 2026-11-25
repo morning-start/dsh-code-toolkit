@@ -147,6 +147,15 @@ function fileLink(path, start, end) {
   return `[${`${path}${range}`.replaceAll(']', '\\]')}](${destination}${fragment})`
 }
 
+/** A finding as its own Markdown section: tag, location, body. */
+function renderFinding(finding) {
+  const tagged = /^\[P[0-3]\]/.test(finding.title) || finding.priority === null
+    ? finding.title
+    : `[P${finding.priority}] ${finding.title}`
+  const location = finding.path ? fileLink(finding.path, finding.start, finding.end) : ''
+  return [`### ${tagged}`, location, finding.body].filter(Boolean).join('\n\n')
+}
+
 /**
  * Render a parsed report as Markdown. `t` translates the few chrome labels;
  * finding text is never translated — it is the agent's own words.
@@ -154,23 +163,14 @@ function fileLink(path, start, end) {
 export function renderReport(report, t) {
   if (report.format === 'text') return report.summary
 
-  const findings = report.findings.map((finding) => {
-    const tagged = /^\[P[0-3]\]/.test(finding.title) || finding.priority === null
-      ? finding.title
-      : `[P${finding.priority}] ${finding.title}`
-    const location = finding.path ? fileLink(finding.path, finding.start, finding.end) : ''
-    return [`### ${tagged}`, location, finding.body].filter(Boolean).join('\n\n')
-  })
-
   const limits = report.limitations.map((item) => `- ${t('report.limitation')}${item}`)
-  const verdict = report.correctness ? `${t('report.verdict')}${report.correctness}` : ''
-  const empty = report.format === 'structured' && !report.findings.length ? t('report.noFindings') : ''
+  const empty = !report.findings.length ? t('report.noFindings') : ''
 
   return [
     report.summary,
-    verdict,
+    report.correctness ? `${t('report.verdict')}${report.correctness}` : '',
     empty,
-    ...findings,
+    ...report.findings.map(renderFinding),
     limits.length ? limits.join('\n') : '',
   ]
     .filter(Boolean)

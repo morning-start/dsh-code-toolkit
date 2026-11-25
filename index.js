@@ -23,21 +23,13 @@ function loadPersona(role) {
   }
 }
 
-/** A run that outlives this window releases its slot; 0 disables the limit. */
-function runTimeoutMs(minutes) {
-  const value = Number(minutes ?? 30)
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(translate('en', 'error.runTimeout'))
-  }
-  return value * 60_000
-}
-
-/** How long an approved plan stays usable; past it the tree has moved on. */
-function planMaxAgeMs(minutes) {
-  const value = Number(minutes ?? 60)
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(translate('en', 'error.planMaxAge'))
-  }
+/**
+ * A minute-based config value as milliseconds; 0 disables the limit.
+ * `errorKey` names the message to throw when the value is not a number.
+ */
+function minutesToMs(minutes, fallback, errorKey) {
+  const value = Number(minutes ?? fallback)
+  if (!Number.isFinite(value) || value < 0) throw new Error(translate('en', errorKey))
   return value * 60_000
 }
 
@@ -90,8 +82,8 @@ export function apply(ctx, config = {}) {
     ctx,
     journal,
     running,
-    runTimeoutMs: runTimeoutMs(config.runTimeoutMinutes),
-    planMaxAgeMs: planMaxAgeMs(config.planMaxAgeMinutes),
+    runTimeoutMs: minutesToMs(config.runTimeoutMinutes, 30, 'error.runTimeout'),
+    planMaxAgeMs: minutesToMs(config.planMaxAgeMinutes, 60, 'error.planMaxAge'),
     localeNow,
     ledgerDirectory,
     translate: (locale, key) => translate(locale, key),
@@ -153,28 +145,18 @@ export function apply(ctx, config = {}) {
       persona: personas.caption,
       buildText: ({ rawInput, agent, locale, host, installed }) => {
         const cwd = agent.session?.header?.cwd
+        const ledger = host.ledgerDirectory(cwd)
         const task = String(rawInput ?? '').trim()
           || '继续当前会话正在进行的任务：先读台账，再决定下一步。'
-        const ledger = host.ledgerDirectory(cwd)
-        const head = [
-          '# Caption loop',
-          '',
-          `Task: ${task}`,
-          ...(cwd ? [`Working directory: ${cwd}`, `Ledger directory: ${ledger}`] : []),
-          `Reference directory: ${personas.caption.directory}`,
-        ]
+        const head = ['# Caption loop', '', `Task: ${task}`]
+        if (cwd) head.push(`Working directory: ${cwd}`, `Ledger directory: ${ledger}`)
+        head.push(`Reference directory: ${personas.caption.directory}`)
         // The protocol is already in this conversation; repeating it only adds a
         // second copy for the agent to disagree with.
-        if (installed) {
-          return [
-            ...head,
-            '',
-            'The caption protocol is already installed earlier in this conversation. Continue under it: read the ledger head first, then take one step and prove it.',
-            '',
-            outputLanguage(locale),
-          ].join('\n')
-        }
-        return [...head, '', personas.caption.text, '', outputLanguage(locale)].join('\n')
+        const body = installed
+          ? 'The caption protocol is already installed earlier in this conversation. Continue under it: read the ledger head first, then take one step and prove it.'
+          : personas.caption.text
+        return [...head, '', body, '', outputLanguage(locale)].join('\n')
       },
       receipt: (rawInput, t, installed, agent) => t(installed ? 'caption.reinstalled' : 'caption.installed')
         .replace('{dir}', ledgerDirectory(agent?.session?.header?.cwd)),
