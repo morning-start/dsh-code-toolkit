@@ -128,7 +128,7 @@ export class SessionCommand {
         },
       )
 
-    return { kind: 'success', text: t(queuedKey(report, false)) }
+    return { kind: 'success', text: t(queuedKey(report, false)).replace('{scope}', '…') }
   }
 
   /** Run the isolated agent and deliver its report as a message. */
@@ -153,8 +153,12 @@ export class SessionCommand {
     const sessionId = agent.session?.id ?? agent.id
     const language = outputLanguage(locale)
     const chinese = String(locale).startsWith('zh')
+    // The receipt is resolved before the child starts, so it can name the scope
+    // the run actually took; a failure to resolve it is delivered as a message.
+    const receipt = this.resolveTask(agent, rawInput, combined, locale, t, sessionId, report, false)
 
-    void this.execute(agent, rawInput, combined, locale, t, sessionId, report)
+    void receipt
+      .then((resolved) => this.execute(agent, resolved, combined, locale, t, sessionId, report))
       .then(
         (text) => {
           if (combined.aborted) return
@@ -168,7 +172,7 @@ export class SessionCommand {
       )
       .finally(() => host.running.delete(key))
 
-    return { kind: 'success', text: t(queuedKey(report, true)) }
+    return receipt.then((resolved) => ({ kind: 'success', text: resolved.receipt }))
   }
 
   /**
@@ -211,8 +215,12 @@ export class SessionCommand {
       ? await this.approvedPlan(sessionId, scopeLabel(scope))
       : undefined
     const prompt = await this.buildPrompt({ scope, mode, cwd, locale, signal: combined, inline, plan })
+    // The default scope is decided from the tree, so the receipt has to say
+    // which one it landed on — otherwise "current branch" hides whether the
+    // uncommitted work or the committed work is being looked at.
+    const receipt = t(queuedKey(report, !inline)).replace('{scope}', scopeLabel(scope))
 
-    return { scope, mode, prompt }
+    return { scope, mode, prompt, receipt }
   }
 
   /** Resolve the scope and assemble the task text (shared by both paths). */
@@ -234,9 +242,8 @@ export class SessionCommand {
   }
 
   /** The isolated run: same preparation, then the child, then the report text. */
-  async execute(agent, rawInput, combined, locale, t, sessionId, report) {
+  async execute(agent, { scope, mode, prompt }, combined, locale, t, sessionId) {
     const { host, spec } = this
-    const { scope, mode, prompt } = await this.resolveTask(agent, rawInput, combined, locale, t, sessionId, report, false)
 
     await host.journal
       .write(sessionId, {

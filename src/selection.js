@@ -121,13 +121,18 @@ async function defaultBase(cwd, signal) {
 /**
  * Turn a symbolic scope into a concrete one.
  *
- * "Current branch" only means something when the branch has a base to compare
- * with; on a repository where the work happens on main, the merge base is HEAD
- * and the diff is empty. Falling back to the recent commits keeps the default
- * useful instead of producing a review of nothing.
+ * "Current branch" means whatever is not yet in the base branch, and the
+ * uncommitted work is the part the person is still working on. So: a dirty tree
+ * reviews the working tree; a clean tree reviews what the branch adds on top of
+ * its base; a branch with no base reviews the recent commits.
  */
 export async function resolveScope(scope, { cwd, signal } = {}) {
   if (scope.mode !== 'branch' || !cwd) return scope
+  try {
+    if ((await git(cwd, ['status', '--porcelain'], signal)).length > 0) return { mode: 'worktree' }
+  } catch {
+    /* not a repository — fall through to the window */
+  }
   try {
     const ref = await defaultBase(cwd, signal)
     const base = ref ? await mergeBase(cwd, ref, signal) : undefined

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.24.0 — 2026-11-25
+
+- `/code-review` with no arguments now follows what the person is working on: a
+  dirty tree reviews **the uncommitted work**, a clean tree reviews **what the
+  branch adds on top of its base**, and a branch with no base reviews the last 5
+  commits. Reviewing the committed work while uncommitted edits sat unreviewed
+  was the wrong default.
+- The receipt names the scope it landed on (`working tree vs HEAD`,
+  `HEAD vs main`, `last 5 commits`, `whole project`), so the two cases are
+  distinguishable without opening the report.
+- 83 deterministic checks.
+
 ## 0.23.0 — 2026-11-25
 
 - The receipt now says what actually happened instead of one generic line. Four

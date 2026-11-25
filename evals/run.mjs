@@ -550,18 +550,40 @@ await testAsync('scope: an empty line means the command default', async () => {
 
 await testAsync('scope: a branch resolves to a base, or to the recent commits', async () => {
   const scope = await resolveScope({ mode: 'branch' }, { cwd: ROOT })
-  // Either the repository has a base branch to compare with, or the scope falls
-  // back to a window; what must never happen is an empty diff.
-  assert(scope.mode === 'base' || scope.mode === 'recent', `unexpected scope ${scope.mode}`)
+  // A dirty tree reviews the working tree; a clean one reviews the branch, or a
+  // window when the branch has no base. What must never happen is an empty diff.
+  assert(['worktree', 'base', 'recent'].includes(scope.mode), `unexpected scope ${scope.mode}`)
   if (scope.mode === 'recent') {
     assertEqual(scope.count, 5, 'window size')
     const text = await scopeInstruction(scope, { cwd: ROOT })
     assert(text.includes('last 5 commits'), 'the instruction names the window')
     assertEqual(scopeLabel(scope), 'last 5 commits', 'label')
-  } else {
+  } else if (scope.mode === 'base') {
     assert(typeof scope.ref === 'string' && scope.ref.length > 0, 'a base ref is named')
     assertEqual(scopeLabel(scope), `HEAD vs ${scope.ref}`, 'label')
+  } else {
+    assertEqual(scopeLabel(scope), 'working tree vs HEAD', 'label')
   }
+})
+
+await testAsync('scope: a dirty tree reviews the uncommitted work, a clean one the branch', async () => {
+  const dir = join(ROOT, 'tmp', 'scope-dirty')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' })
+  git('init', '-q')
+  git('config', 'user.email', 'probe@example.com')
+  git('config', 'user.name', 'probe')
+  writeFileSync(join(dir, 'a.txt'), 'a\n')
+  git('add', 'a.txt')
+  git('commit', '-q', '-m', 'init')
+
+  assertEqual((await resolveScope({ mode: 'branch' }, { cwd: dir })).mode, 'recent', 'clean tree, no base')
+
+  writeFileSync(join(dir, 'b.txt'), 'b\n')
+  assertEqual((await resolveScope({ mode: 'branch' }, { cwd: dir })).mode, 'worktree', 'dirty tree wins')
+
+  rmSync(dir, { recursive: true, force: true })
 })
 
 await testAsync('scope: a clean working tree has nothing to review', async () => {
@@ -580,9 +602,9 @@ await testAsync('scope: a clean working tree has nothing to review', async () =>
   writeFileSync(join(dir, 'b.txt'), 'b\n')
   assertEqual(await scopeHasChanges({ mode: 'worktree' }, { cwd: dir }), true, 'untracked counts')
 
-  const fallback = await resolveScope({ mode: 'branch' }, { cwd: dir })
-  assertEqual(fallback.mode, 'recent', 'a repo with no main reviews recent commits')
-  assertEqual(await scopeHasChanges(fallback, { cwd: dir }), true, 'recent is never empty')
+  const dirty = await resolveScope({ mode: 'branch' }, { cwd: dir })
+  assertEqual(dirty.mode, 'worktree', 'a dirty repo reviews the uncommitted work')
+  assertEqual(await scopeHasChanges(dirty, { cwd: dir }), true, 'and it is never empty')
 
   rmSync(dir, { recursive: true, force: true })
 })
@@ -720,9 +742,10 @@ await testAsync('receipt: the message says where the task went and what it will 
   assert(plan.text.includes('方案'), 'a report run says a plan comes first')
   assert(plan.text.includes('不改任何文件'), 'and that nothing will change')
 
+  // The isolated path resolves its scope before it settles, so this one awaits.
+  // It runs last: the journal it writes is the one the next call would read.
   const sub = await definition.handler({ agent, rawInput: 'sub', signal: new AbortController().signal })
   assert(sub.text.includes('独立子 agent'), 'a sub run says it went to an isolated agent')
-  rmSync(store, { recursive: true, force: true })
 })
 
 test('apply() rejects an invalid config instead of failing later', () => {
