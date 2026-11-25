@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseReport, renderReport } from '../src/report.js'
-import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectScope, resolveScope, scopeHasChanges } from '../src/selection.js'
+import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectScope, resolveScope, scopeHasChanges, branchList } from '../src/selection.js'
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
 import { apply, name as pluginName } from '../index.js'
@@ -564,6 +564,40 @@ await testAsync('scope: a branch resolves to a base, or to the recent commits', 
   } else {
     assertEqual(scopeLabel(scope), 'working tree vs HEAD', 'label')
   }
+})
+
+await testAsync('scope: --branch picks the branch to compare against', async () => {
+  const picked = parseArgs('--branch develop')
+  assertEqual(picked.scope.mode, 'base', 'a branch comparison')
+  assertEqual(picked.scope.ref, 'develop', 'and it names the branch')
+
+  const legacy = parseArgs('--base main')
+  assertEqual(legacy.scope.ref, 'main', '--base still works')
+
+  // An explicit branch is a deliberate choice: it survives a dirty tree.
+  const dir = join(ROOT, 'tmp', 'scope-branch')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' })
+  git('init', '-q')
+  git('config', 'user.email', 'probe@example.com')
+  git('config', 'user.name', 'probe')
+  writeFileSync(join(dir, 'a.txt'), 'a\n')
+  git('add', 'a.txt')
+  git('commit', '-q', '-m', 'init')
+  writeFileSync(join(dir, 'b.txt'), 'b\n')
+
+  const explicit = await resolveScope(parseArgs('--branch main').scope, { cwd: dir })
+  assertEqual(explicit.mode, 'base', 'an explicit branch is honoured even when dirty')
+  assertEqual(explicit.ref, 'main', 'and keeps the ref')
+
+  const implicit = await resolveScope(parseArgs('').scope ?? { mode: 'branch' }, { cwd: dir })
+  assertEqual(implicit.mode, 'worktree', 'the default still follows the dirty tree')
+
+  const branches = await branchList(dir)
+  assert(branches.includes('main') || branches.includes('master'), 'the branch list names the local branch')
+
+  rmSync(dir, { recursive: true, force: true })
 })
 
 await testAsync('scope: a dirty tree reviews the uncommitted work, a clean one the branch', async () => {

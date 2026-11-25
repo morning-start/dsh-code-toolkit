@@ -15,14 +15,14 @@ DeepSeek Harness 的代码工具箱：**审查**、**精炼**、**隐私清理**
 不带参数就按每条命令的默认跑：审查看**未提交的改动**（都提交了就看当前分支相对基线的改动，没有基线就看最近 5 个提交），精炼与清理看**整个项目并直接改**，caption 继续当前任务，pua 用阿里风味——不弹任何选择框。回执会写明这次落在哪个范围。要收窄或换行为，一行写清：
 
 ```text
-/code-review --base main
+/code-review --branch develop
 /code-review sub --commit 1a2b3c4
 /code-simplify --files src/app.js,src/util.js
 /code-simplify report
-/code-simplify sub report --base main
+/code-simplify sub report --branch main
 ```
 
-`sub` 交给子 agent，`report` 只出报告；两者可叠加，位置随意。默认直接改。
+`sub` 交给子 agent，`report` 只出报告，`--branch <ref>` 换一个对比分支（默认基线分支，`--base` 同义）；位置随意，可叠加。默认直接改。
 
 命令必须声明 `input`，否则从 `/` 菜单里**选中就执行**，Tab 也当成回车，没法先插入令牌再补参数。
 

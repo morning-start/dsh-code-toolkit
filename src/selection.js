@@ -100,7 +100,9 @@ export function parseArgs(rawInput) {
     const paths = files[1].split(/[,;]/).map((item) => item.trim()).filter(Boolean)
     if (paths.length) return { scope: { mode: 'files', paths }, apply }
   }
-  const base = line.match(/^--base\s+(.+)$/)
+  // `--branch <ref>` compares against a branch other than the default base;
+  // `--base` is the same thing under the older name.
+  const base = line.match(/^--(?:base|branch)\s+(.+)$/)
   if (base) return { scope: { mode: 'base', ref: base[1].trim() }, apply }
   const commit = line.match(/^--commit\s+(.+)$/)
   if (commit) return { scope: { mode: 'commit', ref: commit[1].trim() }, apply }
@@ -125,6 +127,10 @@ async function defaultBase(cwd, signal) {
  * uncommitted work is the part the person is still working on. So: a dirty tree
  * reviews the working tree; a clean tree reviews what the branch adds on top of
  * its base; a branch with no base reviews the recent commits.
+ *
+ * An explicit `--branch <ref>` is a deliberate choice, so it is honoured even
+ * when the tree is dirty — the person asked for that comparison, not for the
+ * working tree.
  */
 export async function resolveScope(scope, { cwd, signal } = {}) {
   if (scope.mode !== 'branch' || !cwd) return scope
@@ -141,6 +147,17 @@ export async function resolveScope(scope, { cwd, signal } = {}) {
     /* not a repository, or no base to find */
   }
   return { mode: 'recent', count: 5 }
+}
+
+/** The branches a person can compare against, for the hint and for errors. */
+export async function branchList(cwd, signal) {
+  try {
+    return (await git(cwd, ['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes'], signal))
+      .split('\n')
+      .filter((name) => name && !name.endsWith('/HEAD'))
+  } catch {
+    return []
+  }
 }
 
 /** Whether this scope has anything to look at; a clean tree is a real answer. */

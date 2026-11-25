@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.0 — 2026-11-25
+
+- `--branch <ref>` picks which branch to compare against; the default is still
+  the base branch (`origin/HEAD` → `origin/main` → `main` → `master`, first one
+  that is not HEAD). `--base` stays as a synonym.
+- An explicit `--branch` is honoured even when the working tree is dirty — the
+  person asked for that comparison, not for the working tree. The default scope
+  still follows the tree.
+- 84 deterministic checks.
+
 ## 0.24.0 — 2026-11-25
 
 - `/code-review` with no arguments now follows what the person is working on: a
