@@ -49,6 +49,33 @@ If a slice needs a shared file, it reports the need instead of editing: "adding
 the export requires `src/index.js`, which is outside my scope". You make that
 edit, or you widen the scope and re-brief.
 
+## The mechanism
+
+The plugin offers exactly two dispatch mechanisms. Pick one per slice; do not
+invent a third.
+
+| Slice | Mechanism | Why |
+|---|---|---|
+| Analysis of an area ("how does module A handle errors") | `subagent` | read-only, safe to fan out |
+| A build slice with disjoint paths | `subagent` | the brief carries the exclusive path list |
+| The slice *is* a review / simplify / scrub pass on a set of paths | `/code-review sub`, `/code-simplify sub`, `/code-scrub sub` | the plugin already owns the persona, the scope resolution and the report format |
+
+Rules that follow from having two mechanisms:
+
+- **One mechanism per slice.** Do not hand-roll a review brief for paths you are
+  also passing to `/code-review sub`: two agents produce two reports of the same
+  change and you cannot tell which one to trust.
+- **The child does not see this conversation.** `subagent` starts empty; put the
+  task, the paths, the gate and the output shape in the prompt. `subagent_fork`
+  inherits the conversation, so use it only when the slice genuinely needs the
+  history — and then say which part of it to trust.
+- **Start independent slices in one message** so they run concurrently; a slice
+  that needs another slice's output is not independent.
+- **The plugin's own `sub` runs are single-flight.** A second `/code-review sub`
+  in the same session while one is running is refused; wait for the report or
+  cancel it. Your `subagent` dispatches are not capped that way — the cap is your
+  own write-set discipline.
+
 ## The brief
 
 Every dispatch states, in the prompt:

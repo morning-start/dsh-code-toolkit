@@ -46,6 +46,17 @@ lanes, and they have different rules:
   set of paths. Shared files — barrels, indexes, configs, lockfiles, shared
   tests — belong to exactly one owner, normally you.
 
+**How to dispatch.** The plugin gives you two ways, and only two:
+
+- `subagent` (or `subagent_fork` when the child needs this conversation) for a
+  slice that is analysis, or a build slice whose paths no one else touches. Start
+  independent slices in one message so they run together.
+- `/code-review sub`, `/code-simplify sub`, `/code-scrub sub` when the slice is
+  exactly one of those checks. Do not hand-roll a review brief and then also run
+  `/code-review sub` on the same paths — that is two writers of the same report.
+
+The child does not see this conversation. Everything it needs goes in the brief.
+
 A dispatch brief states the task, the exact paths the agent may read and write,
 what it must not touch, the gate it must run, and the output shape. An agent that
 needs a file outside its scope stops and reports instead of editing it.

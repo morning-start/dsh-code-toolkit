@@ -50,6 +50,7 @@ Ledger:
 
 ```markdown
 ## 4. Dispatch: auth and billing in parallel
+- Mechanism: `subagent` ×2, sent in one message
 - Lane: build ×2, disjoint paths (src/auth/, src/billing/)
 - Gate per agent: `node --test test/<module>.test.js` → green, exit 0
 - Shared files: src/index.js, test/shared.js — edited by me, not dispatched
