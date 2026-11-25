@@ -24,8 +24,7 @@
 | `/code-review` | 当前分支相对基线的改动（自动找 `origin/HEAD` / `main` / `master` 的合并基点）；分支没有独立基线时看**最近 5 个提交**；只读 |
 | `/code-simplify` | 整个项目、当前分支、**直接改** |
 | `/code-scrub` | 整个项目、**直接改** |
-| `/code-caption` | 继续当前会话正在进行的任务 |
-| `/pua` | 阿里风味 |
+| `/code-caption` | 继续当前会话正在进行的任务 || `/pua` | 阿里风味 |
 | `/code-status`、`/code-cancel` | 不需要输入 |
 
 通用规则：执行者是当前会话（加 `sub` 才用隔离子 agent），模式是写（加 `report` 只出报告）。
@@ -188,6 +187,10 @@ examples/*.md          按需：示范"什么算够好"
 
 产物是目标仓库里的 `docs/caption/<slug>.md`：头部是任务、验收判据、门禁命令；每条记 `Saw / Decided / Did / Evidence / Outcome`，`Outcome` 只能是 `done`、`dead end`、`unverified`。
 
+- **台账位置可配**：`ledgerDirectory`，相对路径按项目根解析；回执里会写出真实路径。
+- **重复执行不重复注入**：同一会话里第二次 `/code-caption` 只补任务和台账位置，不再塞一遍 5 KB 协议——协议已经在对话里，两份只会互相打架。
+- **分派只有两条路**：`subagent`（新上下文，brief 里写清路径与门禁）和插件自己的 `sub`（`/code-review sub` 等）。同一片工作只用其中一条；`sub` 是单飞的，同一会话里同时只能跑一个，`subagent` 不受这个限制，靠写集纪律约束。
+
 三条规则撑起全部价值：**没有证据不许声称**（"测试通过"是一条命令和它的输出，不是一句话）、**死路要留痕**（否则下一轮再踩一次）、**判据满足才收口**（清单空了不算完）。收尾必须列出未验证项——没验的东西写出来是诚实，藏起来就是让用户替它担保。
 
 ### 分派
@@ -251,3 +254,5 @@ examples/*.md          按需：示范"什么算够好"
 | `simplifyModel` | 简化任务使用的模型；不填则跟随当前模型 |
 | `reviewModel` | 审查任务使用的模型；不填则跟随当前模型 |
 | `reportDirectory` | 报告落盘目录，必须是绝对路径；默认 `$DSH_HOME/code-toolkit` |
+| `scrubModel` | 隐私清理任务使用的模型；不填则跟随当前模型 |
+| `ledgerDirectory` | caption 台账目录；相对路径按项目根解析，默认 `<项目>/docs/caption` |

@@ -8,6 +8,8 @@
 #   simplifyModel    model id for the simplify child default: the host's model
 #   scrubModel       model id for the scrub child    default: the host's model
 #   locale           force the output language       default: follow the host
+#   ledgerDirectory  where caption keeps its ledger  default: <project>/docs/caption
+#                    (a relative path resolves against the project)
 #
 # An invalid value (a relative reportDirectory, an empty model name) fails at
 # load time instead of at the first command.

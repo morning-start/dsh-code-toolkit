@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.17.0 — 2026-11-25
+
+- `/code-caption` no longer re-injects its 5 KB protocol on a second run in the
+  same session: the shell records an `installed` journal entry, and the repeat
+  carries only the task, the ledger path and a pointer to the protocol already in
+  the conversation.
+- The caption ledger directory is configurable (`ledgerDirectory`; relative paths
+  resolve against the project) and the receipt names the real path. An empty
+  value fails at load.
+- Caption's dispatch section now names the two mechanisms the plugin actually
+  offers — `subagent` / `subagent_fork` and the plugin's own `… sub` — and forbids
+  mixing them on one slice; the reference explains that `sub` runs are
+  single-flight while `subagent` dispatches are not.
+- 76 deterministic checks.
+
 ## 0.16.0 — 2026-11-24
 
 - The review default no longer produces an empty scope. "Current branch" now

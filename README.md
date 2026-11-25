@@ -178,6 +178,7 @@ node evals/score.mjs --case 01-null-header --report tmp/eval/01/with/report.txt
 | `reportDirectory` | journal 落盘目录，必须是绝对路径 | `$DSH_HOME/code-toolkit` |
 | `reviewModel` / `simplifyModel` / `scrubModel` | 该命令的子 agent 用哪个模型 | 宿主默认 |
 | `locale` | 强制输出语言（`zh`、`en`…） | 跟随宿主 |
+| `ledgerDirectory` | caption 台账目录，相对路径按项目根解析 | `<项目>/docs/caption` |
 
 写错不会拖到运行时：相对路径、空模型名在插件加载时直接报错。
 
