@@ -29,5 +29,5 @@
     }
   ],
   "allowedExtras": 1,
-  "mustNotLeak": ["hunter2", "jane.doe", "hanes"]
+  "mustNotLeak": ["hunter2", "jane.doe", "alice"]
 }

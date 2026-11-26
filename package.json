@@ -56,5 +56,9 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morning-start/dsh-code-toolkit.git"
   }
 }

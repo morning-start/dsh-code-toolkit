@@ -1,0 +1,108 @@
+name: Release
+
+# Tag-driven release for a DSH plugin package. Copy this file to another plugin
+# as-is: every step works with nothing but package.json, and the ones that need
+# this repository's own tooling are skipped when that tooling is absent.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  # npm provenance: the registry checks the OIDC identity against the repository,
+  # so the published tarball carries a signed statement of where it was built.
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # The LTS alias keeps this file from going stale every October; the
+          # package has no dependencies, so any supported Node runs the checks.
+          node-version: lts/*
+          # Writes an .npmrc that reads ${NODE_AUTH_TOKEN}. Without it, npm ignores
+          # the token and fails with ENEEDAUTH no matter what the secret holds.
+          registry-url: https://registry.npmjs.org
+
+      - name: The tag must match package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+          echo "releasing $version"
+
+      - name: The package must be installable
+        run: |
+          node -e "const m=require('./package.json'); if(!m.dsh?.bundle?.patch) { console.error('no dsh.bundle.patch: dsh plugin add would refuse this'); process.exit(1) }"
+          node -e "const m=require('./package.json'); if(m.private) console.log('private: the registry step will be skipped')"
+
+      # Optional gate: present only in repositories that ship this toolkit's
+      # scripts. A plain plugin package has no scripts/ and skips both steps.
+      - name: Readiness check (when the toolkit is present)
+        if: hashFiles('scripts/release.mjs') != ''
+        run: node scripts/release.mjs check .
+
+      - name: Suites (when the toolkit is present)
+        if: hashFiles('scripts/release.mjs') != ''
+        run: |
+          for suite in try-tool try-sandbox try-checks try-audit try-generate try-release try-market try-adopt; do
+            [ -f "scripts/$suite.mjs" ] && node "scripts/$suite.mjs"
+          done
+          [ -f scripts/check-project.mjs ] && node scripts/check-project.mjs .
+
+      - name: Pack
+        run: |
+          npm pack
+          # Marketplace entries point at releases/latest/download/<name>.tgz, where
+          # the tag resolves at request time but the filename is literal. A version
+          # in the asset name would 404 at the next release.
+          asset=$(node -p "require('./package.json').name.replace(/^@[^/]+\//, '')")
+          mkdir -p dist
+          cp ./*.tgz "dist/$asset.tgz"
+          echo "ASSET=dist/$asset.tgz" >> "$GITHUB_ENV"
+
+      - name: Publish to the registry
+        if: env.NPM_TOKEN != ''
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if node -e "process.exit(require('./package.json').private === true ? 0 : 1)"; then
+            echo "package.json is private: skipping npm publish"
+            exit 0
+          fi
+          npm publish --provenance --access public
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$ASSET" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      # After the release on purpose: the registry can take longer than any
+      # reasonable wait to serve a brand-new version, and that lag must not hold
+      # up the tarball people install from.
+      - name: Registry propagation (advisory)
+        if: env.NPM_TOKEN != '' && hashFiles('scripts/release.mjs') != ''
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: node scripts/release.mjs verify . --version "${GITHUB_REF_NAME#v}" --wait 600

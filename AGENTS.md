@@ -42,7 +42,7 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查并修复�
 
 ## 硬约束
 
-**1. 不引入运行时依赖。** 这个插件以 `link:` 方式装在 profile 里，Node 从真实路径（`E:\Workplace\...`）解析裸模块名，拿不到 profile 的 `node_modules`。所以只能用 `node:` 内置模块和 `ctx` 上的服务。想要一个能力时先找宿主服务，找不到再考虑改设计，不要 `npm install`。
+**1. 不引入运行时依赖。** 这个插件以 `link:` 方式装在 profile 里，Node 从真实路径（`<repo>`）解析裸模块名，拿不到 profile 的 `node_modules`。所以只能用 `node:` 内置模块和 `ctx` 上的服务。想要一个能力时先找宿主服务，找不到再考虑改设计，不要 `npm install`。
 
 **2. 只注册 command，不注册 tool。** 模型不该在写代码时"顺手"调用审查或简化。命令由人触发，这是这个插件存在的意义之一。
 

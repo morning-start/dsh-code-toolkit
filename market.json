@@ -1,0 +1,7 @@
+{
+  "category": "dev",
+  "description": {
+    "en": "Five commands that work with no arguments."
+  },
+  "_note": "The marketplace reads description.en as a claim about this package. Read it before submitting, and add description.zh if you work in Chinese."
+}

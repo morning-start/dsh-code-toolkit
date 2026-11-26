@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "description": "Project checks for @morning-start/dsh-code-toolkit. Run them with the dsh_project_check tool, or with scripts/check-project.mjs from dsh-plugin-creator.",
+  "rules": [
+    {
+      "id": "docs:links",
+      "type": "doc-links",
+      "exclude": [
+        "\\.dsh-memory/"
+      ]
+    },
+    {
+      "id": "bundle:entry",
+      "type": "file-exists",
+      "path": "index.js"
+    },
+    {
+      "id": "bundle:patch",
+      "type": "json-field",
+      "path": "package.json",
+      "field": "dsh.bundle.patch",
+      "equals": "./cordis.patch.yml"
+    },
+    {
+      "id": "locale:parity",
+      "type": "locale-parity"
+    }
+  ]
+}
