@@ -1,11 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Code quality">
-  <rect width="128" height="128" rx="28" fill="#0B0E14"/>
-  <rect x="1" y="1" width="126" height="126" rx="27.5" fill="none" stroke="#1C2632"/>
-
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="7">
-    <path d="M 46 42 L 30 64 L 46 86" stroke="#5AA2FF"/>
-    <path d="M 82 42 L 98 64 L 82 86" stroke="#5AA2FF"/>
-    <path d="M 72 36 L 56 92" stroke="#E9EEF5"/>
-    <path d="M 46 104 L 82 104" stroke="#F2B25C" stroke-width="6"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" role="img" aria-label="Code toolkit">
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6">
+    <path d="M 12.5 11.5 L 6.5 18 L 12.5 24.5" stroke="#5AA2FF"/>
+    <path d="M 23.5 11.5 L 29.5 18 L 23.5 24.5" stroke="#5AA2FF"/>
+    <path d="M 20.5 9.5 L 15.5 26.5" stroke="#E9EEF5" stroke-width="2.2"/>
+    <path d="M 12.5 29.5 L 23.5 29.5" stroke="#F2B25C" stroke-width="2.2"/>
   </g>
 </svg>

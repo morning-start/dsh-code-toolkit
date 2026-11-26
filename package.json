@@ -1,9 +1,13 @@
 {
   "name": "@morning-start/dsh-code-toolkit",
   "version": "0.27.0",
-  "private": true,
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "type": "module",
-  "description": "Five commands for DeepSeek Harness: code review, behavior-preserving simplification, privacy scrubbing, a caption loop, and a PUA protocol. Checks run in the current session by default (add sub for an isolated agent) and write by default (add report for a plan only).",
+  "description": "Five commands for DeepSeek Harness: review and fix, behavior-preserving simplification, privacy scrubbing, a caption loop with a ledger, and a PUA protocol. Each runs in the current session by default (add sub for an isolated agent) and writes by default (add report for a report only).",
   "license": "MIT",
   "icon": "./icon.svg",
   "keywords": [

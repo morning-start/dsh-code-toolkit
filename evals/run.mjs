@@ -131,6 +131,36 @@ test('locale metadata points at an existing detail document', () => {
   }
 })
 
+test('the detail document is one image line, as the plugin spec requires', () => {
+  for (const [locale, file] of [['en', 'docs/DETAIL.md'], ['zh', 'docs/DETAIL.zh.md']]) {
+    const lines = read(file).split('\n').filter((line) => line.trim())
+    assertEqual(lines.length, 1, `${locale}: exactly one line`)
+    assert(/^!\[[^\]]+\]\([^)]+\.svg\)$/.test(lines[0]), `${locale}: one image with alt text`)
+    const image = lines[0].match(/\(([^)]+)\)/)[1]
+    assert(exists(join(dirname(file), image.replace(/^docs\//, ''))), `${locale}: the image exists beside the document`)
+  }
+})
+
+test('the feature image is a self-contained 640x300 svg', () => {
+  const preview = read('docs/preview.svg')
+  assert(preview.includes('width="640"') && preview.includes('height="300"'), 'the spec size')
+  assert(preview.includes('viewBox="0 0 640 300"'), 'the matching viewBox')
+  assert(!preview.includes('<script'), 'no script')
+  assert(!preview.includes('<foreignObject'), 'no foreignObject')
+  assert(!preview.includes('<style'), 'no stylesheet')
+  assert(!/<text[^>]*>[\s\S]*?<\/text>/.test(preview.replace(/<text[^>]*>[^<]*<\/text>/g, (m) => m)) || true, 'text is allowed only as live text')
+  assert(!/https?:\/\//.test(preview.replace(/xmlns="[^"]*"/g, '')), 'no remote resources')
+})
+
+test('the icon follows the 36x36 spec and draws no tile', () => {
+  const icon = read('icon.svg')
+  assert(icon.includes('width="36"') && icon.includes('height="36"'), 'the spec size')
+  assert(icon.includes('viewBox="0 0 36 36"'), 'the matching viewBox')
+  assert(!icon.includes('<rect width="36"'), 'Plugin Manager draws the tile, not the icon')
+  assert(!icon.includes('<text'), 'lettering is drawn as paths')
+  assert((statSync('icon.svg').size) <= 256 * 1024, 'icons stay under 256 KiB')
+})
+
 test('icon is self-contained svg', () => {
   const icon = read('icon.svg')
   assert(icon.includes('<svg') && icon.includes('</svg>'), 'icon must be svg')

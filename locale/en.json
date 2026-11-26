@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Code Toolkit",
-    "description": "Five commands that work with no arguments: review inspects the current branch against its base and never writes; simplify and scrub cover the whole project and write by default (add report for a plan only); caption continues the task already in the conversation; pua uses the default flavor. Add sub to run in an isolated agent instead. Prompts are organised as a layered skill-style tree, with a deterministic test suite and a model evaluation loop.",
+    "title": "Code toolkit",
+    "description": "Five commands that work with no arguments. Review looks at the uncommitted changes (or the branch against its base when the tree is clean), reports, and fixes what it finds — add report for the report only. Simplify and scrub cover the whole project and write by default (add report for a plan only). Caption runs a hard task through an explicit loop with a ledger, and can create expert subagents mid-run for work that splits without colliding. Pua installs a protocol for changing method and showing evidence instead of shrugging. Add sub to run in an isolated agent instead. Prompts are organised as a layered skill-style tree, with a deterministic test suite and a model evaluation loop.",
     "detail": "docs/DETAIL.md"
   }
 }
