@@ -1,6 +1,6 @@
 {
   "name": "@morning-start/dsh-code-toolkit",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "private": false,
   "publishConfig": {
     "access": "public",
@@ -36,7 +36,6 @@
     "agents",
     "cordis.patch.yml",
     "locale",
-    "docs",
     "icon.svg",
     "README.md",
     "CHANGELOG.md",

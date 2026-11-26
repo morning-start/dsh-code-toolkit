@@ -113,7 +113,7 @@ test('the old package name survives only in the changelog', () => {
     if (stale.test(read(relative))) offenders.push(relative)
   }
   for (const file of ['package.json', 'cordis.patch.yml', 'README.md', 'AGENTS.md', 'index.js']) scan(file)
-  for (const dir of ['src', 'agents', 'docs', 'locale']) {
+  for (const dir of ['src', 'agents', 'locale']) {
     for (const entry of readdirSync(join(ROOT, dir), { recursive: true })) {
       const relative = join(dir, entry).replaceAll('\\', '/')
       if (statSync(join(ROOT, relative)).isFile()) scan(relative)
@@ -122,34 +122,23 @@ test('the old package name survives only in the changelog', () => {
   assert(offenders.length === 0, `still mentions the old name: ${offenders.join(', ')}`)
 })
 
-test('locale metadata points at an existing detail document', () => {
+test('locale metadata carries a title and a description', () => {
   for (const locale of ['zh', 'en']) {
     const data = JSON.parse(read(`locale/${locale}.json`))
     assert(Boolean(data.meta?.title), `${locale}: title`)
     assert(Boolean(data.meta?.description), `${locale}: description`)
-    assert(exists(data.meta.detail), `${locale}: detail ${data.meta.detail}`)
+    // The detail page falls back to the README: the host renders a detail
+    // document's Markdown without images, so a single-image document shows only
+    // its alt text. Declaring one would make the page emptier, not richer.
+    assertEqual(data.meta.detail, undefined, `${locale}: no detail document`)
   }
 })
 
-test('the detail document is one image line, as the plugin spec requires', () => {
-  for (const [locale, file] of [['en', 'docs/DETAIL.md'], ['zh', 'docs/DETAIL.zh.md']]) {
-    const lines = read(file).split('\n').filter((line) => line.trim())
-    assertEqual(lines.length, 1, `${locale}: exactly one line`)
-    assert(/^!\[[^\]]+\]\([^)]+\.svg\)$/.test(lines[0]), `${locale}: one image with alt text`)
-    const image = lines[0].match(/\(([^)]+)\)/)[1]
-    assert(exists(join(dirname(file), image.replace(/^docs\//, ''))), `${locale}: the image exists beside the document`)
-  }
-})
-
-test('the feature image is a self-contained 640x300 svg', () => {
-  const preview = read('docs/preview.svg')
-  assert(preview.includes('width="640"') && preview.includes('height="300"'), 'the spec size')
-  assert(preview.includes('viewBox="0 0 640 300"'), 'the matching viewBox')
-  assert(!preview.includes('<script'), 'no script')
-  assert(!preview.includes('<foreignObject'), 'no foreignObject')
-  assert(!preview.includes('<style'), 'no stylesheet')
-  assert(!/<text[^>]*>[\s\S]*?<\/text>/.test(preview.replace(/<text[^>]*>[^<]*<\/text>/g, (m) => m)) || true, 'text is allowed only as live text')
-  assert(!/https?:\/\//.test(preview.replace(/xmlns="[^"]*"/g, '')), 'no remote resources')
+test('the README is what the detail page shows', () => {
+  const readme = read('README.md')
+  assert(readme.includes('# @morning-start/dsh-code-toolkit'), 'the README names the package')
+  assert(readme.includes('/code-review'), 'and documents the commands')
+  assert(!readme.includes('docs/DETAIL'), 'no dangling reference to a removed detail document')
 })
 
 test('the icon follows the 36x36 spec and draws no tile', () => {

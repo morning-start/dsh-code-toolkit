@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.27.1 — 2026-11-26
+
+- The plugin detail page now falls back to the README. The host renders a detail
+  document's Markdown without images, so the single-image `docs/DETAIL*.md` the
+  plugin spec asks for showed up as one line of alt text — emptier than the
+  README. Removed `meta.detail`, both detail documents and the preview image;
+  `docs/` is gone from the package.
+- Verified in a headless browser against an isolated instance: the icon renders
+  in light and dark at row and card size, the detail page shows the Chinese
+  description and the README, and nothing overflows at 390 px.
+- 88 deterministic checks.
+
 ## 0.27.0 — 2026-11-25
 
 - Caption can now create experts **during** the run, not only at the start. A

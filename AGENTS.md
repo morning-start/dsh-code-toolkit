@@ -35,9 +35,10 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查并修复�
 | `agents/<role>/references/` | 深度材料，子 agent 按需读 | 子 agent |
 | `agents/<role>/examples/` | 合格/不合格的样例 | 子 agent |
 | `evals/` | 确定性测试、评测用例、打分器、验收流程、结果记录 | 维护者、CI（**进 git，不进 npm 包**） |
-| `docs/DETAIL.md` | 面向用户的完整说明 | 用户 |
-| `locale/` | 插件元数据（标题、描述、detail 路径） | 宿主插件面板 |
+| `locale/` | 插件元数据（标题、描述） | 宿主插件面板 |
 | `tmp/` | 一次性产物，已 gitignore | 无 |
+
+插件详情页回落到 `README.md`：宿主渲染详情文档时不支持图片，单图文档只会显示成一行 alt 文字，所以不要声明 `meta.detail`。
 
 ## 硬约束
 
@@ -139,7 +140,7 @@ evals/cases/<NN>-<slug>/
 1. 建 `agents/<role>/AGENT.md` + 至少两份 references + 一份 examples。
 2. 在 `index.js` 里 `loadPersona('<role>')`，然后声明一条 `SessionCommand`（`kind: 'task' | 'inject' | 'local'`），不要自己注册命令。
 3. 在 `evals/cases/` 加至少一个 `mode` 等于该 role 的用例——测试会检查每个 role 都有用例。
-4. 更新 `README.md` 的命令表与结构树、`docs/DETAIL.md`、`locale/*.json` 的描述。
+4. 更新 `README.md` 的命令表与结构树、`locale/*.json` 的描述。
 5. `package.json` 不需要动（`agents` 已经在 `files` 里）。
 6. 跑 `npm test`，跑一轮对照，写 `evals/results/iteration-N.md`。
 
@@ -160,7 +161,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（86 项，不需要模型）
+npm test                                   # 确定性测试（88 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt
