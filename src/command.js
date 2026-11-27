@@ -75,13 +75,11 @@ export class SessionCommand {
     const previous = sessionId ? await host.journal.read(sessionId).catch(() => undefined) : undefined
     const installed = previous?.command === spec.command && previous?.state === 'installed'
 
-    await agent.steer({
-      content: [{ type: 'text', text: spec.buildText({ rawInput, agent, locale, host, installed }) }],
-      // Every command delivers the same way: the host sees a plugin request, not
-      // something the person typed, so the UI folds it into one card instead of
-      // pasting the protocol into the conversation.
-      source: { kind: SOURCE_KIND },
-    })
+    // `steer` takes a complete UserMessage, not a partial `{ content, source }`:
+    // the host writes the message into a `user/message` session event as-is, and
+    // a message without its own `id` and `role` fails session-log validation on
+    // the next load. Build it the same way every other delivery does.
+    await agent.steer(userMessage(spec.buildText({ rawInput, agent, locale, host, installed })))
 
     if (sessionId) {
       await host.journal

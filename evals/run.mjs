@@ -71,6 +71,22 @@ function assertThrows(fn, pattern, label) {
   throw new Error(`${label}: did not throw`)
 }
 
+/**
+ * The host validates a `user/message` session event by its message shape: a
+ * non-empty string id, the role the event type expects, a source kind, and a
+ * content array. Handing `steer` a partial `{ content, source }` writes a log
+ * entry that fails on the next load with "lacks an identified message", which
+ * permanently blocks the conversation from opening.
+ */
+function assertUserMessage(message, label) {
+  assert(message && typeof message === 'object', `${label}: a message object`)
+  assert(typeof message.id === 'string' && message.id.length > 0, `${label}: a non-empty string id`)
+  assertEqual(message.role, 'user', `${label}: role`)
+  assert(typeof message.source?.kind === 'string' && message.source.kind.length > 0, `${label}: a source kind`)
+  assert(Array.isArray(message.content), `${label}: a content array`)
+  assertEqual(message.content[0]?.type, 'text', `${label}: a text block`)
+}
+
 const read = (relative) => readFileSync(join(ROOT, relative), 'utf8')
 const exists = (relative) => existsSync(join(ROOT, relative))
 const t = (key) => translate('en', key)
@@ -1027,6 +1043,7 @@ await testAsync('caption: task and protocol are steered into the session', async
   assert(text.includes('Reference directory:'), 'names the reference directory')
   assert(text.includes('Record one caption entry'), 'carries the loop')
   assert(text.includes('caption'), 'names the ledger directory')
+  assertUserMessage(steered[0], 'caption steer')
   assertEqual(steered[0].source?.kind, 'morning-start-code-toolkit', 'the host sees a plugin request, not a typed message')
   rmSync(store, { recursive: true, force: true })
 })
@@ -1092,6 +1109,7 @@ await testAsync('pua: a flavor is steered together with the protocol', async () 
   const text = steered[0].content[0].text
   assert(text.includes('Three red lines'), 'the protocol travels with the flavor')
   assert(text.includes('华为'), 'the chosen flavor is the one injected')
+  assertUserMessage(steered[0], 'pua steer')
 })
 
 // ---------------------------------------------------------------------------

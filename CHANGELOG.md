@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.27.4 — 2026-11-28
+
+- **Fixed a corrupting write in `/code-caption` and `/pua`.** Both passed
+  `steer({ content, source })`, but the host's `Agent.steer` takes a complete
+  `UserMessage` and writes it into a `user/message` session event unchanged. The
+  partial message had no `id` and no `role`, so the session log failed validation
+  on the next load — the conversation became unopenable with
+  `session event at seq N lacks an identified message`. Both commands now build
+  the message with the same `userMessage()` every other delivery uses.
+- Added `assertUserMessage` to the suite: every steered and delivered message is
+  checked for a non-empty string `id`, `role: 'user'`, a `source.kind`, and a
+  text content block — the same four fields the host's session validator reads.
+- Verified end to end in an isolated instance: `/code-caption` writes four
+  `user/message` events with no invalid one, and the log reloads clean.
+- 95 → 95 deterministic checks (the new assertions replaced none).
+
 ## 0.27.3 — 2026-11-28
 
 - Normalised the bundle manifest to the fields the host actually reads. Removed
