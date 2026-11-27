@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.27.3 — 2026-11-28
+
+- Normalised the bundle manifest to the fields the host actually reads. Removed
+  `dsh.manifestVersion`, which no part of the Loader or Plugin Manager looks at;
+  the `dsh` block now holds only `bundle.patch`. `engines.dsh` and the exported
+  `name` were confirmed as recognised fields and left as they are.
+- Normalised `market.json` to a marketplace draft: dropped the author `_note`,
+  added both-language `title` and `description`, and `keywords` for search.
+- `Config` stays undeclared: the standard marks it optional, and the plugin
+  validates its config in `apply()` with translated errors. Schemastery — the
+  library behind the `~standard` interface — is host-bundled and a `link:`-
+  installed plugin cannot resolve it, so a hand-rolled schema would only add
+  code that the host never calls.
+- 93 → 95 deterministic checks.
+
 ## 0.27.2 — 2026-11-27
 
 - One identity rule for every piece of per-session state. The shell resolved

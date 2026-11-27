@@ -1,7 +1,21 @@
 {
   "category": "dev",
-  "description": {
-    "en": "Five commands that work with no arguments."
+  "title": {
+    "en": "Code toolkit",
+    "zh": "代码工具箱"
   },
-  "_note": "The marketplace reads description.en as a claim about this package. Read it before submitting, and add description.zh if you work in Chinese."
+  "description": {
+    "en": "Five commands that work with no arguments: review and fix, behavior-preserving simplification, privacy scrubbing, a caption loop with a ledger, and a PUA protocol. Each runs in the current session by default (add sub for an isolated agent) and writes by default (add report for a report only).",
+    "zh": "五条命令，空输入即可用：审查并修复、行为不变的精炼、隐私清理、带台账的 caption 循环，以及 PUA 协议。默认在当前会话执行（加 sub 改用独立 agent），默认直接改（加 report 只出报告）。"
+  },
+  "keywords": [
+    "dsh",
+    "code-review",
+    "simplify",
+    "privacy",
+    "secret-scan",
+    "caption",
+    "pua",
+    "subagent"
+  ]
 }

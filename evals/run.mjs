@@ -119,6 +119,32 @@ test('plugin id agrees across package.json, the patch, and index.js', () => {
   assertEqual(patchId, pluginName, 'patch id must equal the exported module name')
 })
 
+test('the dsh block declares only fields the host reads', () => {
+  const pkg = JSON.parse(read('package.json'))
+  // The Loader reads `dsh.bundle.patch` (and optionally `dsh.bundle.platforms`).
+  // `dsh.manifestVersion` is not a field the host ever looks at, so declaring it
+  // reads as a schema the plugin invented for itself.
+  assertEqual(Object.keys(pkg.dsh ?? {}).length, 1, 'dsh holds only bundle')
+  assertEqual(Object.keys(pkg.dsh.bundle).length, 1, 'bundle holds only patch')
+  assert(!('manifestVersion' in (pkg.dsh ?? {})), 'no invented manifestVersion')
+})
+
+test('market.json is a well-formed marketplace draft', () => {
+  const market = JSON.parse(read('market.json'))
+  assert(typeof market.category === 'string' && market.category.length > 0, 'a category id')
+  for (const [lang, value] of Object.entries(market.title ?? {})) {
+    assert(typeof value === 'string' && value.length > 0, `title.${lang} is a non-empty string`)
+  }
+  for (const [lang, value] of Object.entries(market.description ?? {})) {
+    assert(typeof value === 'string' && value.length > 0, `description.${lang} is a non-empty string`)
+  }
+  assert(market.title?.en && market.title?.zh, 'title carries both languages')
+  assert(market.description?.en && market.description?.zh, 'description carries both languages')
+  assert(Array.isArray(market.keywords) && market.keywords.length > 0, 'keywords is a non-empty array')
+  // A note is prose for the author, not a field the marketplace reads.
+  assert(!('_note' in market), 'no author note masquerading as a field')
+})
+
 test('the old package name survives only in the changelog', () => {
   const stale = /code-quality|代码质量/
   const offenders = []
