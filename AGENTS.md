@@ -30,7 +30,7 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查并修复�
 | --- | --- | --- |
 | `index.js` | 命令声明（每条一份 spec）、配置校验、persona 装载 | 宿主 |
 | `src/command.js` | `SessionCommand`：所有命令共用的会话交互外壳（注册、范围、投递、journal） | `index.js`、测试 |
-| `src/` | 运行时、报告解析与渲染、i18n、journal、scope 解析 | `index.js`、测试 |
+| `src/` | 运行时、报告解析与渲染、i18n、journal、scope 解析、身份解析 | `index.js`、测试 |
 | `agents/<role>/AGENT.md` | 常驻 persona，注入子 agent 的 system prompt | 子 agent |
 | `agents/<role>/references/` | 深度材料，子 agent 按需读 | 子 agent |
 | `agents/<role>/examples/` | 合格/不合格的样例 | 子 agent |
@@ -161,7 +161,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（88 项，不需要模型）
+npm test                                   # 确定性测试（93 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt

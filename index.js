@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { outputLanguage, readHostLocale, resolveLocale, translate } from './src/i18n.js'
+import { sessionKey } from './src/identity.js'
 import { Journal } from './src/journal.js'
 import { parseReport, renderReport } from './src/report.js'
 import { buildPua, flavorList, resolveFlavor } from './src/pua.js'
@@ -178,10 +179,13 @@ export function apply(ctx, config = {}) {
       kind: 'local',
       descriptionKey: 'cmd.status',
       run: async ({ agent, t, host: h }) => {
-        const entry = h.running.get(agent.id)
+        // One identity for both the running slot and the journal record, so the
+        // status shown matches the key the run actually registered under.
+        const key = sessionKey(agent)
+        const entry = key ? h.running.get(key) : undefined
         if (entry) return { kind: 'success', text: `${t('status.running')}${entry.label}` }
 
-        const record = await h.journal.read(agent.session?.id ?? agent.id).catch(() => undefined)
+        const record = key ? await h.journal.read(key).catch(() => undefined) : undefined
         if (!record) return { kind: 'success', text: t('status.none') }
         if (record.state === 'running') return { kind: 'success', text: t('status.interrupted') }
         if (record.state === 'submitted') {
@@ -195,7 +199,8 @@ export function apply(ctx, config = {}) {
       kind: 'local',
       descriptionKey: 'cmd.cancel',
       run: ({ agent, t, host: h }) => {
-        const entry = h.running.get(agent.id)
+        const key = sessionKey(agent)
+        const entry = key ? h.running.get(key) : undefined
         if (!entry) return { kind: 'success', text: t('cancel.none') }
         entry.controller.abort()
         return { kind: 'success', text: t('cancel.done') }

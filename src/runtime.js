@@ -23,6 +23,13 @@ const DELEGATE_TOOLS = [
  * Requires the native `spawn` provider, whose `inheritsParentContext` is false:
  * the child must read the code itself instead of inheriting this conversation.
  * Without that, a review only sees what the main agent already believes.
+ *
+ * The persona is attached from an `agent/created` listener keyed on the child id
+ * the plugin hands the host. The listener stays up until the run is over, because
+ * the child may be created after `startActivation` resolves; if it were removed
+ * the moment the activation settled, the persona would silently never attach.
+ * When the run finishes without the listener ever firing, the child ran without
+ * a persona — which is exactly the silent failure this function refuses to allow.
  */
 export async function runIsolatedAgent(ctx, parent, options) {
   const { persona, prompt, label, signal, model, t } = options
@@ -38,9 +45,10 @@ export async function runIsolatedAgent(ctx, parent, options) {
   const childId = randomUUID()
   const deny = DELEGATE_TOOLS.filter((name) => ctx.tools.get(name, parent) !== undefined)
 
-  let activation
+  let injected = false
   const stopWatching = ctx.on('agent/created', ({ agent }) => {
     if (agent.id !== childId) return
+    injected = true
     agent.ctx.systemPrompt.section({
       name: PERSONA_SECTION,
       order: agent.ctx.systemPrompt.getSectionOrder(PERSONA_SECTION),
@@ -49,6 +57,7 @@ export async function runIsolatedAgent(ctx, parent, options) {
     if (deny.length) agent.ctx.tools.restrict({ deny })
   })
 
+  let activation
   try {
     // 0.2.2-rc.1 takes a nested `request`; rc.2+ takes a flat spec and exposes
     // `rootOf`. Keep both so the declared engine range stays honest.
@@ -66,11 +75,7 @@ export async function runIsolatedAgent(ctx, parent, options) {
       delivery: 'caller',
       ...(flat ? request : { request }),
     })
-  } finally {
-    stopWatching()
-  }
 
-  try {
     const result = await activation.result
     if (signal.aborted) throw Object.assign(new Error('aborted'), { name: 'AbortError' })
     if (result.stopReason !== 'completed') {
@@ -83,12 +88,19 @@ export async function runIsolatedAgent(ctx, parent, options) {
       .join('')
       .trim()
     if (!text) throw new Error(t('error.noResult'))
+    // The child may finish before its own creation event reaches this listener.
+    // A run that never saw the child is one that ran without the persona, which
+    // is a silent failure worth failing loudly instead of reporting as a report.
+    if (!injected) throw new Error(t('error.noPersona'))
     return text
   } finally {
-    try {
-      await activation.dispose()
-    } catch {
-      /* the session may already be gone */
+    stopWatching()
+    if (activation) {
+      try {
+        await activation.dispose()
+      } catch {
+        /* the session may already be gone */
+      }
     }
   }
 }

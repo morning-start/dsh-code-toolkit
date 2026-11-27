@@ -20,7 +20,17 @@ export class Journal {
     return join(home, 'code-toolkit')
   }
 
+  /**
+   * The file one session's record lives in, named after a hash of its id.
+   *
+   * A missing or non-string id throws rather than being coerced: `createHash`
+   * rejects a non-string argument, and silently hashing `undefined` would put
+   * every unidentified session into one shared file.
+   */
   path(sessionId) {
+    if (typeof sessionId !== 'string' || !sessionId.trim()) {
+      throw new Error('Journal.path needs a session id')
+    }
     return join(this.directory, `${createHash('sha256').update(sessionId).digest('hex')}.json`)
   }
 

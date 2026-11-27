@@ -19,6 +19,8 @@ import { parseReport, renderReport } from '../src/report.js'
 import { scopeInstruction, scopeLabel, parseArgs, mergeBase, splitFlags, selectScope, resolveScope, scopeHasChanges, branchList } from '../src/selection.js'
 import { reportMessage, failureMessage, userMessage } from '../src/delivery.js'
 import { resolveLocale, translate, outputLanguage } from '../src/i18n.js'
+import { sessionKey } from '../src/identity.js'
+import { runIsolatedAgent } from '../src/runtime.js'
 import { apply, name as pluginName } from '../index.js'
 import { Journal } from '../src/journal.js'
 
@@ -56,6 +58,17 @@ function assert(condition, message) {
 
 function assertEqual(actual, expected, label) {
   if (actual !== expected) throw new Error(`${label}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
+}
+
+function assertThrows(fn, pattern, label) {
+  try {
+    fn()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (!pattern.test(message)) throw new Error(`${label}: threw "${message}", expected it to match ${pattern}`)
+    return
+  }
+  throw new Error(`${label}: did not throw`)
 }
 
 const read = (relative) => readFileSync(join(ROOT, relative), 'utf8')
@@ -1053,6 +1066,90 @@ await testAsync('pua: a flavor is steered together with the protocol', async () 
   const text = steered[0].content[0].text
   assert(text.includes('Three red lines'), 'the protocol travels with the flavor')
   assert(text.includes('华为'), 'the chosen flavor is the one injected')
+})
+
+// ---------------------------------------------------------------------------
+// I. identity: every piece of per-session state is keyed by one rule
+// ---------------------------------------------------------------------------
+
+test('identity: sessionKey picks the session id, falls back to the agent id', () => {
+  assertEqual(sessionKey({ session: { id: 'session-1' }, id: 'agent-1' }), 'session-1', 'the session id wins')
+  assertEqual(sessionKey({ id: 'agent-1' }), 'agent-1', 'the agent id is the fallback')
+  assertEqual(sessionKey({ session: {}, id: 'agent-1' }), 'agent-1', 'a session without an id falls back')
+  assertEqual(sessionKey({ session: { id: '   ' }, id: 'agent-1' }), 'agent-1', 'a blank session id falls back')
+  assertEqual(sessionKey({ session: { id: 7 }, id: 'agent-1' }), 'agent-1', 'a non-string session id falls back')
+  assertEqual(sessionKey({}), undefined, 'no id means no key')
+  assertEqual(sessionKey(null), undefined, 'a missing agent means no key')
+})
+
+test('journal: a missing id is rejected, not coerced into one shared file', () => {
+  const journal = new Journal(join(ROOT, 'tmp', 'identity-journal'))
+  assertThrows(() => journal.path(undefined), /session id/, 'undefined')
+  assertThrows(() => journal.path(''), /session id/, 'empty string')
+  assertThrows(() => journal.path('   '), /session id/, 'blank string')
+  assertThrows(() => journal.path(null), /session id/, 'null')
+  assertThrows(() => journal.path(7), /session id/, 'a number')
+})
+
+test('identity: one rule keys every piece of per-session state', () => {
+  const shell = read('src/command.js')
+  const entry = read('index.js')
+  // The old inline expression is gone from both, so a run's single-flight slot
+  // and its journal record cannot be keyed by two different ids.
+  assert(!shell.includes('agent.session?.id ?? agent.id'), 'the shell resolves identity in one place')
+  assert(!entry.includes('agent.session?.id ?? agent.id'), 'the local commands resolve identity in one place')
+  assert(shell.includes('sessionKey(agent)'), 'the shell uses the shared key')
+  assert(entry.includes('sessionKey(agent)'), 'the local commands use the shared key')
+})
+
+await testAsync('identity: an isolated run without an id is refused, not queued on a shared key', async () => {
+  const store = join(ROOT, 'tmp', 'identity-noid')
+  rmSync(store, { recursive: true, force: true })
+  // A working directory, so the shell gets past its first check, but neither a
+  // session id nor an agent id: the run must refuse rather than register under
+  // `undefined` and crowd every other unidentified session into one slot.
+  const agent = {
+    session: { header: { cwd: 'C:\\work\\demo' } },
+    followup: () => {},
+  }
+  const definition = reviewDefinition({ reportDirectory: store, runTimeoutMinutes: 0 })
+  const result = await definition.handler({ agent, rawInput: 'sub report', signal: new AbortController().signal })
+  assertEqual(result.kind, 'error', 'kind')
+  assert(result.text.includes('会话标识'), `names the missing identity: ${result.text}`)
+  rmSync(store, { recursive: true, force: true })
+})
+
+await testAsync('identity: a child that never gets its persona fails the run loudly', async () => {
+  // The host resolves the activation but never emits agent/created for the child
+  // id the plugin handed it. Without the injected flag the child would have run
+  // with no persona, and its result would have been reported as a good report.
+  let listener
+  const ctx = {
+    subagents: {
+      getProvider: () => ({ inheritsParentContext: false }),
+      startActivation: async () => ({
+        result: Promise.resolve({ stopReason: 'completed', output: [{ type: 'text', text: 'a report' }] }),
+        dispose: async () => {},
+      }),
+    },
+    tools: { get: () => undefined },
+    on: (event, handler) => { listener = handler; return () => {} },
+  }
+  let error
+  try {
+    await runIsolatedAgent(ctx, { id: 'parent' }, {
+      persona: 'the persona',
+      prompt: 'do it',
+      label: 'a label',
+      signal: new AbortController().signal,
+      t: (key) => translate('en', key),
+    })
+  } catch (thrown) {
+    error = thrown
+  }
+  assert(error, 'the run must fail instead of reporting a persona-less result')
+  assert(error.message.includes('persona'), `names the missing persona: ${error.message}`)
+  assert(typeof listener === 'function', 'the listener was registered for the child')
 })
 
 console.log(`\n${passed} passed, ${failures.length} failed`)

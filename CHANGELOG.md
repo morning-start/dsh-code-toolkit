@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.27.2 — 2026-11-27
+
+- One identity rule for every piece of per-session state. The shell resolved
+  `agent.session?.id ?? agent.id` in four places, and the single-flight slot took
+  `agent.id` while the journal took the session id: when those two differed,
+  `/code-cancel` and `/code-status` looked under a key the run never wrote to.
+  `src/identity.js` now owns the rule — the session id wins, the agent id
+  falls back — and the slot, the journal record and the local commands all key
+  through it.
+- An isolated run with no usable identity is refused with a clear error instead
+  of registering under `undefined`, where every unidentified session would have
+  crowded into one slot. An inline run with no identity still proceeds: it takes
+  no slot, only the journal record is skipped.
+- The child persona check no longer has a race. The `agent/created` listener
+  now stays up until the run is over, because the child can be created after
+  `startActivation` resolves; and a run that never saw the child fails loudly
+  instead of reporting a persona-less result as a good report.
+- `Journal.path` rejects a missing or non-string id rather than coercing it, so
+  an unidentified session can never land in one shared file.
+- 88 → 93 deterministic checks.
+
 ## 0.27.1 — 2026-11-26
 
 - The plugin detail page now falls back to the README. The host renders a detail

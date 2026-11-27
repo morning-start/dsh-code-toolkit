@@ -1,6 +1,7 @@
 import { resolveScope, scopeHasChanges, scopeInstruction, scopeLabel, selectScope, splitFlags } from './selection.js'
 import { failureMessage, reportMessage, userMessage, SOURCE_KIND } from './delivery.js'
 import { outputLanguage } from './i18n.js'
+import { sessionKey } from './identity.js'
 
 /**
  * The receipt names where the task went and what it will do: the current
@@ -70,8 +71,8 @@ export class SessionCommand {
 
     // A protocol is long; injecting it twice in one session doubles the context
     // and gives the agent two copies to disagree with. Only the task is new.
-    const sessionId = agent.session?.id ?? agent.id
-    const previous = await host.journal.read(sessionId).catch(() => undefined)
+    const sessionId = sessionKey(agent)
+    const previous = sessionId ? await host.journal.read(sessionId).catch(() => undefined) : undefined
     const installed = previous?.command === spec.command && previous?.state === 'installed'
 
     await agent.steer({
@@ -82,13 +83,15 @@ export class SessionCommand {
       source: { kind: SOURCE_KIND },
     })
 
-    await host.journal
-      .write(sessionId, {
-        state: 'installed',
-        command: spec.command,
-        at: new Date().toISOString(),
-      })
-      .catch(() => undefined)
+    if (sessionId) {
+      await host.journal
+        .write(sessionId, {
+          state: 'installed',
+          command: spec.command,
+          at: new Date().toISOString(),
+        })
+        .catch(() => undefined)
+    }
 
     return {
       kind: 'success',
@@ -111,7 +114,7 @@ export class SessionCommand {
     const { host } = this
     const controller = new AbortController()
     const combined = AbortSignal.any([signal, controller.signal])
-    const sessionId = agent.session?.id ?? agent.id
+    const sessionId = sessionKey(agent)
     const language = outputLanguage(locale)
     const chinese = String(locale).startsWith('zh')
 
@@ -134,7 +137,12 @@ export class SessionCommand {
   /** Run the isolated agent and deliver its report as a message. */
   startIsolated(agent, rawInput, signal, locale, t, report) {
     const { host, spec } = this
-    const key = agent.id
+    // The single-flight slot and the journal record are keyed by the same
+    // identity: one key per session, so cancellation and status find the run
+    // that registered it. Without one there is nothing to key on, and inventing
+    // a shared key would let every unidentified session crowd into one slot.
+    const key = sessionKey(agent)
+    if (!key) return { kind: 'error', text: t('error.noIdentity') }
     const stale = host.running.get(key)
     // A run can hang on something outside its own control — an approval nobody
     // answers, a child that never reports. Past the limit the slot is released
@@ -150,7 +158,9 @@ export class SessionCommand {
     const controller = new AbortController()
     const combined = AbortSignal.any([signal, controller.signal])
     host.running.set(key, { controller, label: host.translate(locale, spec.descriptionKey), startedAt: Date.now() })
-    const sessionId = agent.session?.id ?? agent.id
+    // The journal record is keyed by the same identity as the slot: one key per
+    // session, so a status read and a cancellation both find what the run wrote.
+    const sessionId = key
     const language = outputLanguage(locale)
     const chinese = String(locale).startsWith('zh')
     // The receipt is resolved before the child starts, so it can name the scope
@@ -223,20 +233,27 @@ export class SessionCommand {
     return { scope, mode, prompt, receipt }
   }
 
+  /**
+   * Write one journal record. A run with no usable identity has no record to
+   * write — the task still runs, but nothing to key it to is recorded.
+   */
+  async record(host, sessionId, record) {
+    if (!sessionId) return
+    await host.journal.write(sessionId, record).catch(() => undefined)
+  }
+
   /** Resolve the scope and assemble the task text (shared by both paths). */
   async prepare(agent, rawInput, combined, locale, t, sessionId, report) {
     const { host, spec } = this
     const { scope, mode, prompt } = await this.resolveTask(agent, rawInput, combined, locale, t, sessionId, report, true)
 
-    await host.journal
-      .write(sessionId, {
-        state: 'submitted',
-        command: spec.command,
-        scope: scopeLabel(scope),
-        mode,
-        at: new Date().toISOString(),
-      })
-      .catch(() => undefined)
+    await this.record(host, sessionId, {
+      state: 'submitted',
+      command: spec.command,
+      scope: scopeLabel(scope),
+      mode,
+      at: new Date().toISOString(),
+    })
 
     return prompt
   }
@@ -245,15 +262,13 @@ export class SessionCommand {
   async execute(agent, { scope, mode, prompt }, combined, locale, t, sessionId) {
     const { host, spec } = this
 
-    await host.journal
-      .write(sessionId, {
-        state: 'running',
-        command: spec.command,
-        scope: scopeLabel(scope),
-        mode,
-        at: new Date().toISOString(),
-      })
-      .catch(() => undefined)
+    await this.record(host, sessionId, {
+      state: 'running',
+      command: spec.command,
+      scope: scopeLabel(scope),
+      mode,
+      at: new Date().toISOString(),
+    })
 
     const raw = await host.runIsolatedAgent(agent, {
       persona: `${spec.persona.text}\n\n${outputLanguage(locale)}`,
@@ -267,16 +282,14 @@ export class SessionCommand {
     const body = spec.structured ? host.renderReport(host.parseReport(raw), t) : raw
     const text = [`> ${scopeLabel(scope)} · ${mode}`, '', body].join('\n')
 
-    await host.journal
-      .write(sessionId, {
-        state: 'finished',
-        command: spec.command,
-        scope: scopeLabel(scope),
-        mode,
-        result: text,
-        at: new Date().toISOString(),
-      })
-      .catch(() => undefined)
+    await this.record(host, sessionId, {
+      state: 'finished',
+      command: spec.command,
+      scope: scopeLabel(scope),
+      mode,
+      result: text,
+      at: new Date().toISOString(),
+    })
 
     return text
   }
