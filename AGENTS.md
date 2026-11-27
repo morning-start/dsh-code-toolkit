@@ -60,6 +60,8 @@ DeepSeek Harness 插件，提供五条命令：`/code-review`（审查并修复�
 
 **9. 所有命令都通过 `SessionCommand` 注册。** `index.js` 里只写声明，不直接 `ctx.commands.register`；测试会检查。命令之间的一致性靠这个外壳保证，绕开它就等于又写了一遍。
 
+**10. 投递给宿主的消息必须是完整的 `UserMessage`。** `agent.steer` / `agent.followup` / `agent.inject` 收的是完整消息，宿主把**它原样**写成一条 `user/message` 会话事件。手写 `{ content, source }` 会缺少 `id` 和 `role`，本次会话看不出异常，但**下次加载会话时校验失败，整个对话再也打不开**（`session event at seq N lacks an identified message`）。一律用 `src/delivery.js` 的 `userMessage()` 构造；测试会扫描 `.steer({` / `.followup({` 这类对象字面量调用。
+
 ## 新能力的流程
 
 **"新能力"指**：新增一个 agent role、新增一个命令、或对现有 persona 做实质性修改（改判定标准、改输出契约、加一类操作）。改错别字、调措辞不算。
@@ -161,7 +163,7 @@ evals/cases/<NN>-<slug>/
 ## 常用命令
 
 ```powershell
-npm test                                   # 确定性测试（93 项，不需要模型）
+npm test                                   # 确定性测试（96 项，不需要模型）
 node evals/run.mjs --verbose               # 同上，逐项打印
 node evals/case-setup.mjs --case 03-shared-retry-counter --out tmp/eval/03
 node evals/score.mjs --case 03-shared-retry-counter --report tmp/eval/03/with/report.txt

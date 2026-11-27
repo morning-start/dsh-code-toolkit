@@ -9,12 +9,16 @@
   on the next load — the conversation became unopenable with
   `session event at seq N lacks an identified message`. Both commands now build
   the message with the same `userMessage()` every other delivery uses.
-- Added `assertUserMessage` to the suite: every steered and delivered message is
-  checked for a non-empty string `id`, `role: 'user'`, a `source.kind`, and a
-  text content block — the same four fields the host's session validator reads.
-- Verified end to end in an isolated instance: `/code-caption` writes four
-  `user/message` events with no invalid one, and the log reloads clean.
-- 95 → 95 deterministic checks (the new assertions replaced none).
+- Added a static guard to the suite: no `.steer({` / `.followup({` / `.inject({`
+  object literal may reach the host, both delivery paths must build through
+  `userMessage()`, and every built message is checked for a non-empty `id`,
+  `role: 'user'`, a `source.kind`, and a text block — the four fields the host's
+  session validator reads. Two messages never share an id.
+- Verified end to end in an isolated instance with the host's own
+  `adoptSessionEvent` validator: `/code-caption` (44 events) and `/pua` (29
+  events) both pass with zero failures, after reproducing the original failure on
+  an affected log (`session event at seq 2182 lacks an identified message`).
+- 95 → 96 deterministic checks.
 
 ## 0.27.3 — 2026-11-28
 

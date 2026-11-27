@@ -1112,6 +1112,31 @@ await testAsync('pua: a flavor is steered together with the protocol', async () 
   assertUserMessage(steered[0], 'pua steer')
 })
 
+test('delivery: only complete UserMessages reach the host', () => {
+  // The host writes a steered or queued message straight into a `user/message`
+  // session event. A partial `{ content, source }` has no id and no role, so the
+  // log fails validation on the next load and the conversation cannot be opened.
+  // Guarding the call sites here is cheaper than discovering it in a session log.
+  const files = ['index.js', 'src/command.js', 'src/delivery.js']
+  for (const file of files) {
+    const text = read(file)
+    for (const method of ['steer', 'followup', 'inject', 'send']) {
+      assert(!new RegExp(`\\.${method}\\(\\{`).test(text), `${file}: ${method} must not take an object literal`)
+    }
+  }
+
+  // Both delivery paths go through the one builder that adds id, role, and source.
+  assert(read('src/command.js').includes('agent.steer(userMessage('), 'steer takes a built UserMessage')
+  assert(/agent\.followup\(message\)/.test(read('index.js')), 'followup takes a built message')
+  const built = userMessage('x')
+  assertUserMessage(built, 'userMessage')
+  assertUserMessage(reportMessage('r', 'Write in English.'), 'reportMessage')
+  assertUserMessage(failureMessage('f', 'Write in English.'), 'failureMessage')
+  // A fresh identity per message: two deliveries must not share one id, or the
+  // second is a duplicate of the first in the log.
+  assert(userMessage('a').id !== userMessage('b').id, 'every message gets its own id')
+})
+
 // ---------------------------------------------------------------------------
 // I. identity: every piece of per-session state is keyed by one rule
 // ---------------------------------------------------------------------------
